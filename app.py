@@ -96,4 +96,4 @@ st.write("Styled probabilities table for league positions:")
 
 # Style and display
 styled_table = style_probabilities_table(pos_pct_df)
-st.dataframe(styled_table)
+st.table(pos_pct_df.style.format({col: "{:.2f}%" for col in pos_pct_df.columns if col not in ["POS","TEAM","GP","PTS"]}))
