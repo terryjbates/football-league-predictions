@@ -1,18 +1,17 @@
-import os
 from model import generate_predictions
+import os
 
 print("Running daily football predictions...")
 
-# df_simulation_all must be created earlier in your pipeline
-results = generate_predictions(df_simulation_all)
+results = generate_predictions()
 
 os.makedirs("predictions", exist_ok=True)
 
 for league, df in results.items():
 
-    path = f"predictions/{league}.csv"
-    df.to_csv(path)
+    file_path = f"predictions/{league}.csv"
+    df.to_csv(file_path)
 
-    print(f"Saved {path}")
+    print(f"Saved {file_path}")
 
 print("All predictions saved successfully.")

@@ -176,7 +176,7 @@ def run_simulations(fixtures, table, n_sim=10000):
 # MAIN PREDICTION FUNCTION
 # ===============================
 
-def generate_predictions(df_simulation_all):
+def generate_predictions():
 
     results = {}
 
