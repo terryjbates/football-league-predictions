@@ -1,0 +1,269 @@
+# 2_dataset_processing.py
+import pandas as pd
+
+# -------------------------------
+# 1️⃣ Season start date and leagues
+SEASON_START_DATE = pd.Timestamp("2025-08-01")
+
+leagues = [
+    "premierleague_england",
+    "seriea_italy",
+    "laliga_spain",
+    "bundesliga_germany",
+    "ligue1_france",
+]
+
+# -------------------------------
+# 2️⃣ Team name mappings per league
+mappings = {
+    "premierleague_england": {
+        "Aston Villa FC": "Aston Villa",
+        "Leeds United FC": "Leeds United",
+        "Newcastle United FC": "Newcastle United",
+        "Crystal Palace FC": "Crystal Palace",
+        "Chelsea FC": "Chelsea",
+        "Arsenal FC": "Arsenal",
+        "Everton FC": "Everton",
+        "Burnley FC": "Burnley",
+        "Brighton & Hove Albion FC": "Brighton & Hove Albion",
+        "Sunderland AFC": "Sunderland",
+        "West Ham United FC": "West Ham United",
+        "Manchester City FC": "Manchester City",
+        "Manchester United FC": "Manchester United",
+        "Fulham FC": "Fulham",
+        "Liverpool FC": "Liverpool",
+        "Brentford FC": "Brentford",
+        "Wolverhampton Wanderers FC": "Wolverhampton Wanderers",
+        "Nottingham Forest FC": "Nottingham Forest",
+        "Tottenham Hotspur FC": "Tottenham Hotspur",
+        # Betting odds
+        "Brighton and Hove Albion": "Brighton & Hove Albion",
+        "Bournemouth": "AFC Bournemouth"
+    },
+    "seriea_italy": {
+        "US Sassuolo Calcio": "Sassuolo",
+        "Cagliari Calcio": "Cagliari",
+        "Atalanta BC": "Atalanta",
+        "SS Lazio": "Lazio",
+        "Genoa CFC": "Genoa",
+        "Udinese Calcio": "Udinese",
+        "FC Internazionale Milano": "Internazionale",
+        "Torino FC": "Torino",
+        "AC Pisa 1909": "Pisa",
+        "ACF Fiorentina": "Fiorentina",
+        "AS Roma": "AS Roma",
+        "Juventus FC": "Juventus",
+        "Como 1907": "Como",
+        "US Cremonese": "Cremonese",
+        "Bologna FC 1909": "Bologna",
+        "Parma Calcio 1913": "Parma",
+        "Hellas Verona FC": "Hellas Verona",
+        "SSC Napoli": "Napoli",
+        "US Lecce": "Lecce",
+        # Betting odds
+        "Inter Milan": "Internazionale",
+        "Como": "Como"
+    },
+    "laliga_spain": {
+        "Club Atlético de Madrid": "Atlético Madrid",
+        "Rayo Vallecano de Madrid": "Rayo Vallecano",
+        "Valencia CF": "Valencia",
+        "Deportivo Alavés": "Alavés",
+        "CA Osasuna": "Osasuna",
+        "RCD Espanyol de Barcelona": "Espanyol",
+        "Getafe CF": "Getafe",
+        "Real Sociedad de Fútbol": "Real Sociedad",
+        "Levante UD": "Levante",
+        "Real Betis Balompié": "Real Betis",
+        "RCD Mallorca": "Mallorca",
+        "Girona FC": "Girona",
+        "Villarreal CF": "Villarreal",
+        "FC Barcelona": "Barcelona",
+        "Elche CF": "Elche",
+        "Sevilla FC": "Sevilla",
+        "Real Madrid CF": "Real Madrid",
+        "RC Celta de Vigo": "Celta Vigo",
+        # Betting odds
+        "Elche CF": "Elche",
+        "Oviedo": "Real Oviedo",
+        "Athletic Bilbao": "Athletic Club"
+    },
+    "bundesliga_germany": {
+        "1. FC Köln": "FC Cologne",
+        "TSG 1899 Hoffenheim": "TSG Hoffenheim",
+        "1. FSV Mainz 05": "Mainz",
+        "SV Werder Bremen": "Werder Bremen",
+        "Hamburger SV": "Hamburg SV",
+        "Bayer 04 Leverkusen": "Bayer Leverkusen",
+        "FC St. Pauli 1910": "St. Pauli",
+        "FC Bayern München": "Bayern Munich",
+        # Betting odds
+        "1. FC Heidenheim": "1. FC Heidenheim 1846",
+        "Union Berlin": "1. FC Union Berlin",
+        "Borussia Monchengladbach": "Borussia Mönchengladbach",
+        "FSV Mainz 05": "Mainz",
+        "Bayer Leverkusen": "Bayer Leverkusen",
+        "Augsburg": "FC Augsburg",
+        "FC St. Pauli": "St. Pauli"
+    },
+    "ligue1_france": {
+        "Racing Club de Lens": "Lens",
+        "OGC Nice": "Nice",
+        "FC Metz": "Metz",
+        "Angers SCO": "Angers",
+        "Stade Brestois 29": "Brest",
+        "Olympique Lyonnais": "Lyon",
+        "Paris Saint-Germain FC": "Paris Saint-Germain",
+        "AS Monaco FC": "AS Monaco",
+        "Lille OSC": "Lille",
+        "Toulouse FC": "Toulouse",
+        "FC Nantes": "Nantes",
+        "RC Strasbourg Alsace": "Strasbourg",
+        "FC Lorient": "Lorient",
+        "Olympique de Marseille": "Marseille",
+        "Stade Rennais FC 1901": "Stade Rennais",
+        # Betting odds
+        "RC Lens": "Lens",
+        "Paris Saint Germain": "Paris Saint-Germain",
+        "Auxerre": "AJ Auxerre",
+        "Lyon": "Lyon",
+        "Le Havre": "Le Havre AC",
+        "Rennes": "Stade Rennais",
+        "Metz": "Metz",
+        "Nice": "Nice",
+        "Lille": "Lille"
+    }
+}
+
+# -------------------------------
+# 3️⃣ Helpers
+def get_team_columns(df):
+    if {"homeTeam", "awayTeam"}.issubset(df.columns):
+        return "homeTeam", "awayTeam"
+    if {"home_team", "away_team"}.issubset(df.columns):
+        return "home_team", "away_team"
+    raise KeyError("No home/away team columns found")
+
+def extract_teams(df):
+    home_col, away_col = get_team_columns(df)
+    return set(df[home_col]).union(set(df[away_col]))
+
+def filter_current_season(past_matches):
+    df = past_matches.copy()
+    df["utcDate"] = pd.to_datetime(df["utcDate"], utc=True).dt.tz_localize(None)
+    return df[df["utcDate"] >= SEASON_START_DATE]
+
+def season_fixtures(past_matches, future_matches):
+    return pd.concat(
+        [past_matches[["homeTeam", "awayTeam"]],
+         future_matches[["homeTeam", "awayTeam"]]],
+        ignore_index=True
+    )
+
+def find_missing_reverse_fixture(team, opponent, fixtures):
+    team_home = ((fixtures.homeTeam == team) & (fixtures.awayTeam == opponent)).any()
+    team_away = ((fixtures.homeTeam == opponent) & (fixtures.awayTeam == team)).any()
+    if team_home and not team_away:
+        return opponent, team
+    if team_away and not team_home:
+        return team, opponent
+    return None
+
+# -------------------------------
+# 4️⃣ Main processing function
+def process_datasets(globals_dict):
+    missing_fixtures = []
+
+    # 4a️⃣ Apply team name mappings
+    datasets_templates = [
+        "past_matches_{}_all",
+        "future_matches_{}",
+        "betting_odds_{}"
+    ]
+
+    for league, mapping in mappings.items():
+        for ds_template in datasets_templates:
+            ds_name = ds_template.format(league)
+            df = globals_dict[ds_name]
+            df.replace(mapping, inplace=True)
+
+    # 4b️⃣ Check for missing fixtures from bookmaker odds
+    for league in leagues:
+        future_matches = globals_dict[f"future_matches_{league}"]
+        betting_odds = globals_dict[f"betting_odds_{league}"]
+
+        future_set = set(zip(future_matches["homeTeam"], future_matches["awayTeam"]))
+        book_set = set(zip(betting_odds["home_team"], betting_odds["away_team"]))
+        missing_matches = book_set - future_set
+
+        if missing_matches:
+            rows_to_add = []
+            for home, away in missing_matches:
+                row = betting_odds[
+                    (betting_odds["home_team"]==home) & (betting_odds["away_team"]==away)
+                ].iloc[0]
+                rows_to_add.append({
+                    "utcDate": row.get("utcDate", pd.NaT),
+                    "homeTeam": home,
+                    "awayTeam": away
+                })
+            future_matches = pd.concat([future_matches, pd.DataFrame(rows_to_add)], ignore_index=True)
+            globals_dict[f"future_matches_{league}"] = future_matches
+
+    # 4c️⃣ Detect teams missing fixtures for reverse matches
+    for league in leagues:
+        league_table = globals_dict[league]
+        future_matches = globals_dict[f"future_matches_{league}"]
+        past_matches_all = globals_dict[f"past_matches_{league}_all"]
+        past_matches = filter_current_season(past_matches_all)
+        fixtures = season_fixtures(past_matches, future_matches)
+
+        total_teams = len(league_table)
+        matches_per_team = (total_teams - 1) * 2
+
+        played_counts = (
+            fixtures.homeTeam.value_counts()
+            .add(fixtures.awayTeam.value_counts(), fill_value=0)
+        )
+
+        missing_teams = {
+            team: matches_per_team - played_counts.get(team, 0)
+            for team in league_table["team"]
+            if matches_per_team - played_counts.get(team, 0) > 0
+        }
+
+        league_teams = set(league_table["team"])
+        for team in missing_teams:
+            for opponent in league_teams - {team}:
+                result = find_missing_reverse_fixture(team, opponent, fixtures)
+                if result:
+                    home, away = result
+                    missing_fixtures.append({
+                        "league": league,
+                        "homeTeam": home,
+                        "awayTeam": away
+                    })
+
+    missing_df = pd.DataFrame(missing_fixtures).drop_duplicates().sort_values(["league","homeTeam"])
+
+    # 4d️⃣ Append missing fixtures in-place
+    future_matches_backup = {}
+    for league in missing_df["league"].unique():
+        future_matches_backup[league] = globals_dict[f"future_matches_{league}"].copy()
+        future_matches = globals_dict[f"future_matches_{league}"]
+        league_missing = missing_df[missing_df["league"]==league]
+        for _, row in league_missing.iterrows():
+            new_match = {col: pd.NA for col in future_matches.columns}
+            new_match["homeTeam"] = row["homeTeam"]
+            new_match["awayTeam"] = row["awayTeam"]
+            future_matches.loc[len(future_matches)] = new_match
+        globals_dict[f"future_matches_{league}"] = future_matches
+
+    return missing_df, future_matches_backup
+
+# -------------------------------
+if __name__ == "__main__":
+    # Example usage with globals()
+    missing_df, backup = process_datasets(globals())
+    print("\n🚨 Missing fixtures detected:")
+    print(missing_df)
