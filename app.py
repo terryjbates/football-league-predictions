@@ -1,53 +1,68 @@
 # app.py
 
+# -------------------------------
+# 1️⃣ IMPORTS
 import streamlit as st
-import pickle
+import importlib.util
+import sys
 import pandas as pd
-import dataset_simulation
-import dataset_creation  # For loading original league tables
+import pickle
 
 # -------------------------------
-# 1️⃣ Page config
+# 2️⃣ HELPER: dynamic module import
+def import_module_from_path(module_name, path):
+    spec = importlib.util.spec_from_file_location(module_name, path)
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+# -------------------------------
+# 3️⃣ IMPORT REQUIRED MODULES (just for constants/functions)
+dataset_processing = import_module_from_path("dataset_processing", "2_dataset_processing.py")
+dataset_simulation = import_module_from_path("dataset_simulation", "4_simulations.py")
+
+# -------------------------------
+# 4️⃣ STREAMLIT APP
 st.set_page_config(page_title="Football League Simulation", layout="wide")
 st.title("⚽ Football League Monte Carlo Simulation")
 
 # -------------------------------
-# 2️⃣ Load precomputed simulations
-@st.cache_data
-def load_precomputed():
-    with open("data/precomputed_pos_counts.pkl", "rb") as f:
-        pos_counts_all = pickle.load(f)
-    with open("data/precomputed_pos_pct.pkl", "rb") as f:
-        pos_pct_all = pickle.load(f)
-    return pos_counts_all, pos_pct_all
+# 5️⃣ Load precomputed results
+st.info("⏳ Loading precomputed simulation results...")
+with open("data/precomputed_pos_counts.pkl", "rb") as f:
+    position_distribution_all = pickle.load(f)
 
-position_distribution_all, position_distribution_pct_all = load_precomputed()
+with open("data/precomputed_pos_pct.pkl", "rb") as f:
+    position_distribution_pct_all = pickle.load(f)
 
-# -------------------------------
-# 3️⃣ Load league tables for metadata (GP, PTS, etc.)
-@st.cache_data
-def load_tables():
-    standings, _, _ = dataset_creation.create_datasets(save_csv=False)
-    return standings
-
-tables_all = load_tables()
+st.success("✅ Precomputed results loaded.")
 
 # -------------------------------
-# 4️⃣ Select league to display
-leagues = list(position_distribution_all.keys())
-selected_league = st.sidebar.selectbox("Select League", leagues)
+# 6️⃣ Sidebar league selection
+league = st.sidebar.selectbox(
+    "Select League",
+    dataset_processing.leagues
+)
 
-# -------------------------------
-# 5️⃣ Display styled table for selected league
-st.header(f"🏆 {selected_league.replace('_', ' ').title()} Simulation Results")
-st.write("Probability table for league positions (top rows shown). Scroll to see all.")
+# --- 7️⃣ Display selected league ---
+st.header(f"🏆 {league.replace('_', ' ').title()} Simulation Results")
 
-# Get precomputed DataFrame for selected league
-pos_pct = position_distribution_pct_all[selected_league]
-table = tables_all[selected_league]
+# Get the precomputed percentage table
+pos_pct = position_distribution_pct_all.get(league)
 
-# Dynamically style
+# Build a basic table for meta info (GP, PTS)
+table = pd.DataFrame({
+    "team": pos_pct.index,
+    "pts": 0,   # placeholder
+    "gd": 0,
+    "gp": 0,
+    "position": range(1, len(pos_pct)+1)
+})
+
+# Style the table using your simulation module
 styled_table = dataset_simulation.style_position_table(pos_pct, table)
 
-# Display in Streamlit
-st.dataframe(styled_table, use_container_width=True)
+# Convert the styled table to HTML and render safely in Streamlit
+st.write("Styled probabilities table for league positions:")
+st.markdown(styled_table.to_html(), unsafe_allow_html=True)
