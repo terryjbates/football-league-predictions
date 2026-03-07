@@ -10,12 +10,8 @@ from matplotlib.colors import LinearSegmentedColormap
 
 def match_probabilities_league(home, away, attack, defense, league_avg_scored, home_advantage, max_goals=6):
     """Compute Poisson probabilities for a single match."""
-    exp_home = np.exp(
-        np.log(league_avg_scored) + np.log(attack[home]) + np.log(defense[away]) + home_advantage
-    )
-    exp_away = np.exp(
-        np.log(league_avg_scored) + np.log(attack[away]) + np.log(defense[home])
-    )
+    exp_home = np.exp(np.log(league_avg_scored) + np.log(attack[home]) + np.log(defense[away]) + home_advantage)
+    exp_away = np.exp(np.log(league_avg_scored) + np.log(attack[away]) + np.log(defense[home]))
     p_home = poisson.pmf(range(max_goals + 1), exp_home)
     p_away = poisson.pmf(range(max_goals + 1), exp_away)
 
@@ -54,7 +50,7 @@ def simulate_once(fixtures, table):
 
     table_sim["pts"] = table_sim["team"].map(points)
     table_sim = table_sim.sort_values(["pts", "gd"], ascending=[False, False])
-    table_sim["position"] = np.arange(1, len(table_sim) + 1)
+    table_sim["position"] = np.arange(1, len(table_sim)+1)
     return table_sim
 
 def run_simulations(fixtures, table, n_sim=10000):
@@ -64,23 +60,19 @@ def run_simulations(fixtures, table, n_sim=10000):
     for i in range(n_sim):
         final_table = simulate_once(fixtures, table)
         for _, row in final_table.iterrows():
-            position_counts[row["team"]][row["position"] - 1] += 1
-        if (i + 1) % 1000 == 0:
-            print(f"{i + 1}/{n_sim} simulations done...")
+            position_counts[row["team"]][row["position"]-1] += 1
+        if (i+1) % 1000 == 0:
+            print(f"{i+1}/{n_sim} simulations done...")
 
-    pos_df = pd.DataFrame(position_counts, index=np.arange(1, len(table) + 1))
-    pos_df_t = pos_df.T
-    pos_df_pct = pos_df_t.div(pos_df_t.sum(axis=1), axis=0) * 100
-
+    pos_df = pd.DataFrame(position_counts, index=np.arange(1, len(table)+1))
+    pos_df_pct = pos_df.T.div(pos_df.T.sum(axis=1), axis=0) * 100
     return pos_df, pos_df_pct
 
 # === 3. STYLING HELPERS ===
 
 def create_green_cmap():
     greens = plt.cm.Greens
-    return LinearSegmentedColormap.from_list(
-        "Greens_soft", greens(np.linspace(0.05, 0.65, 256))
-    )
+    return LinearSegmentedColormap.from_list("Greens_soft", greens(np.linspace(0.05, 0.65, 256)))
 
 def zero_style(val):
     if val < 1:
@@ -128,8 +120,8 @@ def style_position_table(pos_pct, table):
 
 # === 4. MAIN FUNCTION ===
 
-def simulate_leagues(leagues, df_simulation_all, tables_all, n_sim=10000):
-    """Run league simulations and return raw counts, percentage tables, and styled tables."""
+def simulate_leagues(leagues, df_simulation_all, tables_all, n_sim=10000, top_n=None):
+    """Run league simulations and return raw counts, percentages, and styled tables (optionally top N)."""
     position_distribution_all = {}
     position_distribution_pct_all = {}
     styled_position_pct_all = {}
@@ -143,8 +135,10 @@ def simulate_leagues(leagues, df_simulation_all, tables_all, n_sim=10000):
         position_distribution_all[league] = pos_counts
         position_distribution_pct_all[league] = pos_pct
 
-        # Re-style using full table
-        styled_position_pct_all[league] = style_position_table(pos_pct, table)
+        # Slice top N positions if requested
+        pos_pct_to_style = pos_pct.head(top_n) if top_n else pos_pct
+        styled_position_pct_all[league] = style_position_table(pos_pct_to_style, table)
+
         print(f"Finished simulations for {league} ✅")
 
     return position_distribution_all, position_distribution_pct_all, styled_position_pct_all
@@ -162,18 +156,10 @@ if __name__ == "__main__":
     # tables_all should be a dict: league_name → table dataframe with 'team', 'pts', 'gd', 'gp'
     tables_all = {league: globals()[league] for league in leagues}
 
-    # Run simulations
+    # Run simulations and display top 3 positions only
     position_distribution_all, position_distribution_pct_all, styled_position_pct_all = simulate_leagues(
-        leagues, df_simulation_all, tables_all, n_sim=10000
+        leagues, df_simulation_all, tables_all, n_sim=1000, top_n=3
     )
 
-    # --- Display first 3 rows of Premier League ---
-    pl_styler_full = styled_position_pct_all["premierleague_england"]
-
-    # Slice underlying DataFrame for top 3 positions
-    pl_df_head = pl_styler_full.data.head(3)
-
-    # Re-style sliced DataFrame
-    pl_head_styled = style_position_table(pl_df_head, tables_all["premierleague_england"].loc[pl_df_head.index])
-
-    display(pl_head_styled)
+    # Display top 3 for Premier League
+    display(styled_position_pct_all["premierleague_england"])

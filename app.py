@@ -98,10 +98,14 @@ if run_pipeline:
 
         # 5e️⃣ Display selected league
         st.header(f"🏆 {league.replace('_', ' ').title()} Simulation Results")
-        st.write(
-            "Styled probabilities table for league positions (top rows shown). Scroll to see all."
-        )
-        st.dataframe(styled_tables_all.get(league, pd.DataFrame()).head(10))
+        st.write("Styled probabilities table for league positions (top rows shown). Scroll to see all.")
+
+        # Streamlit can render Styler objects directly
+        styled_table = styled_tables_all.get(league)
+        if styled_table is not None:
+            st.write(styled_table)  # No .head() needed
+        else:
+            st.write("No data available for this league.")
 
     except Exception as e:
         st.error(f"❌ An error occurred: {e}")
