@@ -1,4 +1,4 @@
-# dataset_probabilities.py
+# 3_probabilities.py
 
 import pandas as pd
 import numpy as np
@@ -6,55 +6,36 @@ from scipy.stats import poisson
 
 # === 1. HELPERS ===
 
-def get_team_columns(df):
-    if {"homeTeam", "awayTeam"}.issubset(df.columns):
-        return "homeTeam", "awayTeam"
+def normalize_columns(df, kind="fixtures"):
+    """Ensure home/away columns exist and are standardized."""
+    df = df.copy()
+    if df.empty:
+        if kind == "fixtures":
+            df["homeTeam"], df["awayTeam"] = pd.Series(dtype=str), pd.Series(dtype=str)
+        else:  # odds
+            df["home_team"], df["away_team"] = pd.Series(dtype=str), pd.Series(dtype=str)
+        return df
+
     if {"home_team", "away_team"}.issubset(df.columns):
-        return "home_team", "away_team"
-    raise KeyError("No home/away team columns found")
+        df = df.rename(columns={"home_team": "homeTeam", "away_team": "awayTeam"})
+    elif not {"homeTeam", "awayTeam"}.issubset(df.columns):
+        df["homeTeam"] = df.get("homeTeam", pd.Series(["Unknown"]*len(df)))
+        df["awayTeam"] = df.get("awayTeam", pd.Series(["Unknown"]*len(df)))
+    return df
 
 def extract_teams(df):
-    home_col, away_col = get_team_columns(df)
-    return set(df[home_col]).union(set(df[away_col]))
+    return set(df["homeTeam"]).union(set(df["awayTeam"]))
 
-def filter_current_season(past_matches, season_start=pd.Timestamp("2025-08-01")):
-    df = past_matches.copy()
-    if "utcDate" not in df.columns:
-        raise ValueError("Expected column 'utcDate' not found in past matches")
-    df["utcDate"] = pd.to_datetime(df["utcDate"], utc=True).dt.tz_localize(None)
-    return df[df["utcDate"] >= season_start]
+def filter_current_season(df, season_start=pd.Timestamp("2025-08-01")):
+    df = df.copy()
+    if "utcDate" in df.columns:
+        df["utcDate"] = pd.to_datetime(df["utcDate"], errors='coerce', utc=True).dt.tz_localize(None)
+        return df[df["utcDate"] >= season_start]
+    return df
 
-def season_fixtures(past_matches, future_matches):
-    return pd.concat(
-        [past_matches[["homeTeam", "awayTeam"]], future_matches[["homeTeam", "awayTeam"]]],
-        ignore_index=True,
-    )
-
-def find_missing_reverse_fixture(team, opponent, fixtures):
-    team_home = ((fixtures.homeTeam == team) & (fixtures.awayTeam == opponent)).any()
-    team_away = ((fixtures.homeTeam == opponent) & (fixtures.awayTeam == team)).any()
-    if team_home and not team_away:
-        return opponent, team
-    if team_away and not team_home:
-        return team, opponent
-    return None
-
-def match_probabilities_league(
-    home,
-    away,
-    attack,
-    defense,
-    league_avg_scored,
-    home_advantage,
-    max_goals=6,
-):
-    exp_home = np.exp(
-        np.log(league_avg_scored) + np.log(attack[home]) + np.log(defense[away]) + home_advantage
-    )
-    exp_away = np.exp(
-        np.log(league_avg_scored) + np.log(attack[away]) + np.log(defense[home])
-    )
-
+def match_probabilities_league(home, away, attack, defense, league_avg, home_adv, max_goals=6):
+    exp_home = np.exp(np.log(league_avg) + np.log(attack.get(home, 1.0)) + np.log(defense.get(away, 1.0)) + home_adv)
+    exp_away = np.exp(np.log(league_avg) + np.log(attack.get(away, 1.0)) + np.log(defense.get(home, 1.0)))
     p_home = poisson.pmf(range(max_goals + 1), exp_home)
     p_away = poisson.pmf(range(max_goals + 1), exp_away)
 
@@ -70,26 +51,27 @@ def match_probabilities_league(
                 p_loss += prob
     return p_win, p_draw, p_loss
 
-# === 2. COMPUTE FINAL PROBABILITIES FUNCTION ===
+# === 2. MAIN FUNCTION ===
 
 def compute_final_probabilities(leagues, past_matches_dict, fixtures_dict, betting_odds_dict):
-    df_final_probabilities_all = {}
-    home_advantage_by_league = {}
-    
+    df_final_all = {}
+    home_adv_by_league = {}
+
     for league in leagues:
-        # 2a. Weight past matches
         df_all = past_matches_dict[league].copy()
-        df_all["date"] = pd.to_datetime(df_all["utcDate"])
-        df_all = df_all.sort_values("date").reset_index(drop=True)
-        df_all["weight"] = np.linspace(1, 2, len(df_all))
+        if "utcDate" in df_all.columns:
+            df_all["utcDate"] = pd.to_datetime(df_all["utcDate"], errors='coerce', utc=True).dt.tz_localize(None)
+            df_all = df_all.sort_values("utcDate").reset_index(drop=True)
+        df_all["weight"] = np.linspace(1, 2, len(df_all)) if len(df_all) > 0 else 1
         past_matches_dict[league + "_weighted"] = df_all
 
-        # 2b. Home advantage
-        home_adv = df_all["homeGoals"].mean() - df_all["awayGoals"].mean()
-        home_advantage_by_league[league] = home_adv
+        # Home advantage
+        home_adv = (df_all.get("homeGoals", pd.Series([0])) - df_all.get("awayGoals", pd.Series([0]))).mean()
+        home_adv_by_league[league] = home_adv
 
-        # 2c. Team attack/defense
-        teams = pd.unique(df_all[["homeTeam", "awayTeam"]].values.ravel("K"))
+        # Team attack/defense
+        df_all = normalize_columns(df_all)
+        teams = pd.unique(df_all[["homeTeam", "awayTeam"]].values.ravel("K")) if not df_all.empty else []
         attack = pd.Series(1.0, index=teams)
         defense = pd.Series(1.0, index=teams)
         team_stats = {}
@@ -97,91 +79,81 @@ def compute_final_probabilities(leagues, past_matches_dict, fixtures_dict, betti
         for team in teams:
             home_games = df_all[df_all["homeTeam"] == team]
             away_games = df_all[df_all["awayTeam"] == team]
+            home_goals = home_games.get("homeGoals", pd.Series([0]*len(home_games)))
+            away_goals = away_games.get("awayGoals", pd.Series([0]*len(away_games)))
+            home_weight = home_games.get("weight", pd.Series([1]*len(home_games)))
+            away_weight = away_games.get("weight", pd.Series([1]*len(away_games)))
 
-            goals_scored = (
-                (home_games["homeGoals"] * home_games["weight"]).sum() +
-                (away_games["awayGoals"] * away_games["weight"]).sum()
-            )
-            goals_against = (
-                (home_games["awayGoals"] * home_games["weight"]).sum() +
-                (away_games["homeGoals"] * away_games["weight"]).sum()
-            )
-            matches = home_games["weight"].sum() + away_games["weight"].sum()
+            goals_scored = (home_goals * home_weight).sum() + (away_goals * away_weight).sum()
+            goals_against = (home_games.get("awayGoals", pd.Series([0]*len(home_games))) * home_weight).sum() + \
+                            (away_games.get("homeGoals", pd.Series([0]*len(away_games))) * away_weight).sum()
+            matches = home_weight.sum() + away_weight.sum()
+            matches = matches if matches > 0 else 1
             team_stats[team] = {"scored": goals_scored / matches, "against": goals_against / matches}
 
-        league_avg_scored = (df_all["homeGoals"].mean() + df_all["awayGoals"].mean()) / 2
+        league_avg = ((df_all.get("homeGoals", pd.Series([0])) + df_all.get("awayGoals", pd.Series([0]))).mean()) / 2
+        league_avg = league_avg if league_avg > 0 else 1.0
         for team in teams:
-            attack[team] = team_stats[team]["scored"] / league_avg_scored
-            defense[team] = team_stats[team]["against"] / league_avg_scored
+            attack[team] = team_stats[team]["scored"] / league_avg
+            defense[team] = team_stats[team]["against"] / league_avg
 
-        # 2d. Compute Poisson probabilities for future matches
-        df_future = fixtures_dict[league]
+        # Compute Poisson probabilities
+        df_future = normalize_columns(fixtures_dict[league])
         results = []
         for _, row in df_future.iterrows():
             home = row["homeTeam"]
             away = row["awayTeam"]
-            p_win, p_draw, p_loss = match_probabilities_league(
-                home, away, attack, defense, league_avg_scored, home_adv
-            )
+            p_win, p_draw, p_loss = match_probabilities_league(home, away, attack, defense, league_avg, home_adv)
             results.append({
                 "utcDate": row.get("utcDate", pd.NaT),
                 "homeTeam": home,
                 "awayTeam": away,
                 "p_home_win": p_win,
                 "p_draw": p_draw,
-                "p_away_win": p_loss,
+                "p_away_win": p_loss
             })
-        df_probabilities = pd.DataFrame(results)
+        df_prob = pd.DataFrame(results)
 
-        # 2e. Combine with betting odds if available
-        df_book = betting_odds_dict[league]
-        df_book = df_book.drop_duplicates(subset=["home_team", "away_team"], keep="first")
-        df_final = df_probabilities.merge(
-            df_book,
-            left_on=["homeTeam", "awayTeam"],
-            right_on=["home_team", "away_team"],
-            how="left"
-        )
+        # Combine with betting odds
+        df_book = betting_odds_dict.get(league, pd.DataFrame())
+        if not df_book.empty:
+            df_book = df_book.rename(columns={"home_team": "homeTeam", "away_team": "awayTeam"})
+            df_final = df_prob.merge(df_book, on=["homeTeam", "awayTeam"], how="left")
+        else:
+            df_final = df_prob.copy()
 
         for col_model, col_book, col_final in [
             ("p_home_win", "p_home_book", "p_home_final"),
             ("p_draw", "p_draw_book", "p_draw_final"),
             ("p_away_win", "p_away_book", "p_away_final")
         ]:
-            df_final[col_final] = np.where(
-                df_final[col_book].notna(),
-                df_final[col_book],
-                df_final[col_model]
-            )
+            if col_book in df_final.columns:
+                df_final[col_final] = np.where(df_final[col_book].notna(), df_final[col_book], df_final[col_model])
+            else:
+                df_final[col_final] = df_final[col_model]
 
         prob_cols = ["p_home_final", "p_draw_final", "p_away_final"]
         df_final[prob_cols] = df_final[prob_cols].div(df_final[prob_cols].sum(axis=1), axis=0)
 
-        df_final_probabilities_all[league] = df_final[[
-            "utcDate", "homeTeam", "awayTeam", "p_home_final", "p_draw_final", "p_away_final"
-        ]]
-    
-    return df_final_probabilities_all
+        df_final_all[league] = df_final[["utcDate", "homeTeam", "awayTeam", "p_home_final", "p_draw_final", "p_away_final"]]
 
-# === 3. OPTIONAL MAIN BLOCK FOR DIRECT RUNNING ===
+    return df_final_all
 
+# === MAIN BLOCK ===
 if __name__ == "__main__":
     leagues = [
         "premierleague_england",
         "seriea_italy",
         "laliga_spain",
         "bundesliga_germany",
-        "ligue1_france",
+        "ligue1_france"
     ]
+    past_matches_all = {league: globals().get(f"past_matches_{league}_all", pd.DataFrame()) for league in leagues}
+    fixtures_all = {league: globals().get(f"fixtures_{league}", pd.DataFrame()) for league in leagues}
+    betting_odds_all = {league: globals().get(f"betting_odds_{league}", pd.DataFrame()) for league in leagues}
 
-    # Expect your past_matches, fixtures, betting_odds to be loaded into globals()
-    past_matches_all = {league: globals()[f"past_matches_{league}_all"] for league in leagues}
-    fixtures_all = {league: globals()[f"fixtures_{league}"] for league in leagues}
-    betting_odds_all = {league: globals()[f"betting_odds_{league}"] for league in leagues}
-
-    df_simulation_all = compute_final_probabilities(leagues, past_matches_all, fixtures_all, betting_odds_all)
-
-    for league, df in df_simulation_all.items():
+    df_sim_all = compute_final_probabilities(leagues, past_matches_all, fixtures_all, betting_odds_all)
+    for league, df in df_sim_all.items():
         print(f"\n=== {league.replace('_', ' ').title()} ===")
         print(df.head(3))
         print(f"Number of matches: {len(df)}")

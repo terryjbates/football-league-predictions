@@ -84,7 +84,6 @@ mappings = {
         "Real Madrid CF": "Real Madrid",
         "RC Celta de Vigo": "Celta Vigo",
         # Betting odds
-        "Elche CF": "Elche",
         "Oviedo": "Real Oviedo",
         "Athletic Bilbao": "Athletic Club"
     },
@@ -137,26 +136,37 @@ mappings = {
 
 # -------------------------------
 # 3️⃣ Helpers
-def get_team_columns(df):
-    if {"homeTeam", "awayTeam"}.issubset(df.columns):
-        return "homeTeam", "awayTeam"
-    if {"home_team", "away_team"}.issubset(df.columns):
-        return "home_team", "away_team"
-    raise KeyError("No home/away team columns found")
+def normalize_columns(df, kind="fixtures"):
+    """Ensure home/away columns exist and are standardized."""
+    df = df.copy()
+    if df.empty:
+        df["homeTeam"] = pd.Series(dtype=str)
+        df["awayTeam"] = pd.Series(dtype=str)
+        return df
 
-def extract_teams(df):
-    home_col, away_col = get_team_columns(df)
-    return set(df[home_col]).union(set(df[away_col]))
+    # Rename columns if needed
+    if {"home_team", "away_team"}.issubset(df.columns):
+        df = df.rename(columns={"home_team": "homeTeam", "away_team": "awayTeam"})
+    elif {"homeTeam", "awayTeam"}.issubset(df.columns):
+        pass
+    else:
+        df["homeTeam"] = pd.NA
+        df["awayTeam"] = pd.NA
+    return df
 
 def filter_current_season(past_matches):
     df = past_matches.copy()
-    df["utcDate"] = pd.to_datetime(df["utcDate"], utc=True).dt.tz_localize(None)
-    return df[df["utcDate"] >= SEASON_START_DATE]
+    if "utcDate" in df.columns:
+        df["utcDate"] = pd.to_datetime(df["utcDate"], utc=True).dt.tz_localize(None)
+        return df[df["utcDate"] >= SEASON_START_DATE]
+    return df
 
 def season_fixtures(past_matches, future_matches):
+    past_matches = normalize_columns(past_matches)
+    future_matches = normalize_columns(future_matches)
     return pd.concat(
-        [past_matches[["homeTeam", "awayTeam"]],
-         future_matches[["homeTeam", "awayTeam"]]],
+        [past_matches[["homeTeam","awayTeam"]],
+         future_matches[["homeTeam","awayTeam"]]],
         ignore_index=True
     )
 
@@ -184,55 +194,58 @@ def process_datasets(globals_dict):
     for league, mapping in mappings.items():
         for ds_template in datasets_templates:
             ds_name = ds_template.format(league)
-            df = globals_dict[ds_name]
-            df.replace(mapping, inplace=True)
+            df = globals_dict.get(ds_name)
+            if df is not None:
+                df = normalize_columns(df)
+                df.replace(mapping, inplace=True)
+                globals_dict[ds_name] = df
 
-    # 4b️⃣ Check for missing fixtures from bookmaker odds
+    # 4b️⃣ Missing fixtures from betting odds
     for league in leagues:
-        future_matches = globals_dict[f"future_matches_{league}"]
-        betting_odds = globals_dict[f"betting_odds_{league}"]
+        future_matches = globals_dict.get(f"future_matches_{league}")
+        betting_odds = globals_dict.get(f"betting_odds_{league}")
+        if future_matches is None or betting_odds is None:
+            continue
 
         future_set = set(zip(future_matches["homeTeam"], future_matches["awayTeam"]))
-        book_set = set(zip(betting_odds["home_team"], betting_odds["away_team"]))
+        book_set = set(zip(
+            normalize_columns(betting_odds)["homeTeam"],
+            normalize_columns(betting_odds)["awayTeam"]
+        ))
         missing_matches = book_set - future_set
 
-        if missing_matches:
-            rows_to_add = []
-            for home, away in missing_matches:
-                row = betting_odds[
-                    (betting_odds["home_team"]==home) & (betting_odds["away_team"]==away)
-                ].iloc[0]
-                rows_to_add.append({
-                    "utcDate": row.get("utcDate", pd.NaT),
-                    "homeTeam": home,
-                    "awayTeam": away
-                })
-            future_matches = pd.concat([future_matches, pd.DataFrame(rows_to_add)], ignore_index=True)
-            globals_dict[f"future_matches_{league}"] = future_matches
+        for home, away in missing_matches:
+            future_matches.loc[len(future_matches)] = {
+                "utcDate": pd.NaT,
+                "homeTeam": home,
+                "awayTeam": away
+            }
+        globals_dict[f"future_matches_{league}"] = future_matches
 
-    # 4c️⃣ Detect teams missing fixtures for reverse matches
+    # 4c️⃣ Detect reverse fixtures
     for league in leagues:
-        league_table = globals_dict[league]
-        future_matches = globals_dict[f"future_matches_{league}"]
-        past_matches_all = globals_dict[f"past_matches_{league}_all"]
-        past_matches = filter_current_season(past_matches_all)
+        league_table = globals_dict.get(f"past_matches_{league}_all")
+        future_matches = globals_dict.get(f"future_matches_{league}")
+        if league_table is None or future_matches is None:
+            continue
+
+        past_matches = filter_current_season(league_table)
         fixtures = season_fixtures(past_matches, future_matches)
 
         total_teams = len(league_table)
         matches_per_team = (total_teams - 1) * 2
 
-        played_counts = (
-            fixtures.homeTeam.value_counts()
-            .add(fixtures.awayTeam.value_counts(), fill_value=0)
+        played_counts = fixtures.homeTeam.value_counts().add(
+            fixtures.awayTeam.value_counts(), fill_value=0
         )
 
         missing_teams = {
             team: matches_per_team - played_counts.get(team, 0)
-            for team in league_table["team"]
+            for team in league_table.get("team", [])
             if matches_per_team - played_counts.get(team, 0) > 0
         }
 
-        league_teams = set(league_table["team"])
+        league_teams = set(league_table.get("team", []))
         for team in missing_teams:
             for opponent in league_teams - {team}:
                 result = find_missing_reverse_fixture(team, opponent, fixtures)
@@ -244,26 +257,19 @@ def process_datasets(globals_dict):
                         "awayTeam": away
                     })
 
+    # 4d️⃣ Append missing fixtures
     missing_df = pd.DataFrame(missing_fixtures).drop_duplicates().sort_values(["league","homeTeam"])
-
-    # 4d️⃣ Append missing fixtures in-place
     future_matches_backup = {}
     for league in missing_df["league"].unique():
         future_matches_backup[league] = globals_dict[f"future_matches_{league}"].copy()
         future_matches = globals_dict[f"future_matches_{league}"]
         league_missing = missing_df[missing_df["league"]==league]
         for _, row in league_missing.iterrows():
-            new_match = {col: pd.NA for col in future_matches.columns}
-            new_match["homeTeam"] = row["homeTeam"]
-            new_match["awayTeam"] = row["awayTeam"]
-            future_matches.loc[len(future_matches)] = new_match
+            future_matches.loc[len(future_matches)] = {
+                "utcDate": pd.NaT,
+                "homeTeam": row["homeTeam"],
+                "awayTeam": row["awayTeam"]
+            }
         globals_dict[f"future_matches_{league}"] = future_matches
 
     return missing_df, future_matches_backup
-
-# -------------------------------
-if __name__ == "__main__":
-    # Example usage with globals()
-    missing_df, backup = process_datasets(globals())
-    print("\n🚨 Missing fixtures detected:")
-    print(missing_df)

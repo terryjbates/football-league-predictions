@@ -1,4 +1,4 @@
-# dataset_simulation.py
+# 4_simulations.py
 
 import pandas as pd
 import numpy as np
@@ -34,11 +34,7 @@ def match_probabilities_league(home, away, attack, defense, league_avg_scored, h
 # === 2. SIMULATION FUNCTIONS ===
 
 def simulate_once(fixtures, table):
-    """
-    Simulate the remaining fixtures once and return updated table.
-    table must have columns: 'team', 'pts', 'gd'
-    fixtures must have columns: 'homeTeam', 'awayTeam', 'p_home_final', 'p_draw_final', 'p_away_final'
-    """
+    """Simulate remaining fixtures once."""
     table_sim = table.copy()
     points = dict(zip(table_sim["team"], table_sim["pts"]))
 
@@ -58,23 +54,21 @@ def simulate_once(fixtures, table):
 
     table_sim["pts"] = table_sim["team"].map(points)
     table_sim = table_sim.sort_values(["pts", "gd"], ascending=[False, False])
-    table_sim["position"] = np.arange(1, len(table_sim)+1)
+    table_sim["position"] = np.arange(1, len(table_sim) + 1)
     return table_sim
 
 def run_simulations(fixtures, table, n_sim=10000):
-    """
-    Run multiple simulations and return position counts and percentage tables.
-    """
+    """Run multiple simulations and return position counts and percentage tables."""
     position_counts = {team: np.zeros(len(table)) for team in table["team"]}
 
     for i in range(n_sim):
         final_table = simulate_once(fixtures, table)
         for _, row in final_table.iterrows():
-            position_counts[row["team"]][row["position"]-1] += 1
-        if (i+1) % 1000 == 0:
-            print(f"{i+1}/{n_sim} simulations done...")
+            position_counts[row["team"]][row["position"] - 1] += 1
+        if (i + 1) % 1000 == 0:
+            print(f"{i + 1}/{n_sim} simulations done...")
 
-    pos_df = pd.DataFrame(position_counts, index=np.arange(1, len(table)+1))
+    pos_df = pd.DataFrame(position_counts, index=np.arange(1, len(table) + 1))
     pos_df_t = pos_df.T
     pos_df_pct = pos_df_t.div(pos_df_t.sum(axis=1), axis=0) * 100
 
@@ -135,9 +129,7 @@ def style_position_table(pos_pct, table):
 # === 4. MAIN FUNCTION ===
 
 def simulate_leagues(leagues, df_simulation_all, tables_all, n_sim=10000):
-    """
-    Run league simulations and return both raw counts and styled tables.
-    """
+    """Run league simulations and return raw counts, percentage tables, and styled tables."""
     position_distribution_all = {}
     position_distribution_pct_all = {}
     styled_position_pct_all = {}
@@ -151,6 +143,7 @@ def simulate_leagues(leagues, df_simulation_all, tables_all, n_sim=10000):
         position_distribution_all[league] = pos_counts
         position_distribution_pct_all[league] = pos_pct
 
+        # Re-style using full table
         styled_position_pct_all[league] = style_position_table(pos_pct, table)
         print(f"Finished simulations for {league} ✅")
 
@@ -159,8 +152,6 @@ def simulate_leagues(leagues, df_simulation_all, tables_all, n_sim=10000):
 # === 5. USAGE EXAMPLE ===
 
 if __name__ == "__main__":
-    # Example: assuming you have `df_simulation_all` from probabilities part
-    # and league tables loaded as globals
     leagues = [
         "premierleague_england",
         "seriea_italy",
@@ -176,5 +167,13 @@ if __name__ == "__main__":
         leagues, df_simulation_all, tables_all, n_sim=10000
     )
 
-    # Display first 3 rows for Premier League
-    display(styled_position_pct_all["premierleague_england"].head(3))
+    # --- Display first 3 rows of Premier League ---
+    pl_styler_full = styled_position_pct_all["premierleague_england"]
+
+    # Slice underlying DataFrame for top 3 positions
+    pl_df_head = pl_styler_full.data.head(3)
+
+    # Re-style sliced DataFrame
+    pl_head_styled = style_position_table(pl_df_head, tables_all["premierleague_england"].loc[pl_df_head.index])
+
+    display(pl_head_styled)
