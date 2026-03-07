@@ -4,6 +4,8 @@ import streamlit as st
 import pickle
 import pandas as pd
 import numpy as np
+import os
+from datetime import datetime, timezone
 from matplotlib import pyplot as plt
 from matplotlib.colors import LinearSegmentedColormap
 
@@ -66,25 +68,68 @@ def style_probabilities_table(df):
             {"selector": "th:nth-child(4), td:nth-child(4)", "props":[("border-right","2px solid #999")]},
             {"selector": "td:nth-child(-n+4)", "props":[("border-bottom","1px solid #ccc")]},
             {"selector": "tr:nth-child(odd) td:nth-child(-n+4)", "props":[("background-color","#f9f9f9")]},
-            {"selector": "tr:nth-child(even) td:nth-child(-n+4)", "props":[("background-color","#f2f2f2")]}
+            {"selector": "tr:nth-child(even) td:nth-child(-n+4)", "props":[("background-color","#f2f2f2")]},
         ])
     )
-    return styled
+    return styled, num_cols
 
 # -------------------------------
 # 3️⃣ STREAMLIT APP
 
 st.set_page_config(page_title="Football League Simulation", layout="wide")
-st.title("⚽ Football League Monte Carlo Simulation")
 
-# Load pickle
-st.info("⏳ Loading precomputed simulation results...")
+# -------------------------------
+# 4️⃣ TITLE AND CENTERING CSS
+st.title("⚽ Football League Season Simulation")
+
+center_css = """
+<style>
+h1, h2, h3, .stMarkdown p, .stSelectbox label {
+    text-align: center !important;
+    width: 100%;
+    display: block;
+}
+</style>
+"""
+st.markdown(center_css, unsafe_allow_html=True)
+
+# -------------------------------
+# 4.1️⃣ SHORTER AND CENTERED SELECTBOX
+selectbox_css = """
+<style>
+div.stSelectbox > label, div.stSelectbox > div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+}
+
+/* Limit the width of the actual dropdown */
+div.stSelectbox > div > div[role="combobox"] {
+    max-width: 300px;
+    min-width: 200px;
+}
+</style>
+"""
+st.markdown(selectbox_css, unsafe_allow_html=True)
+
+# -------------------------------
+# Load pickle and show last run time
+
+pct_file = "data/precomputed_pos_pct.pkl"
+counts_file = "data/precomputed_pos_counts.pkl"
+
 try:
-    with open("data/precomputed_pos_counts.pkl","rb") as f:
+    with open(counts_file,"rb") as f:
         position_distribution_all = pickle.load(f)
-    with open("data/precomputed_pos_pct.pkl","rb") as f:
+    with open(pct_file,"rb") as f:
         position_distribution_pct_all = pickle.load(f)
-    st.success("✅ Precomputed results loaded.")
+
+    # Last modified timestamp in UTC
+    pct_mtime = datetime.fromtimestamp(os.path.getmtime(pct_file), tz=timezone.utc)
+    formatted_time = pct_mtime.strftime("%d/%B/%Y %H:%M")
+    st.info(f"Simulations last run on: {formatted_time} UTC")
+
 except Exception as e:
     st.error(f"❌ Failed to load precomputed results: {e}")
     st.stop()
@@ -127,7 +172,35 @@ pos_pct_df["GP"] = pos_pct_df["GP"].astype(int)
 pos_pct_df["PTS"] = pos_pct_df["PTS"].astype(int)
 
 st.header(f"🏆 {selected_display_name} Simulation Results")
-st.write("Styled probabilities table for league positions:")
 
-styled_table = style_probabilities_table(pos_pct_df)
+# -------------------------------
+# 5️⃣ STYLE AND DISPLAY FULL WIDTH (TEAM column wider)
+styled_table, num_cols = style_probabilities_table(pos_pct_df)
+
+full_width_css = f"""
+<style>
+table {{
+    width: 100% !important;
+    table-layout: auto !important;
+}}
+th, td {{
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center !important;
+    font-size: 14px !important;  /* bigger font for all cells */
+}}
+th:nth-child(1), td:nth-child(1) {{ min-width: 40px; }}  /* POS */
+th:nth-child(2), td:nth-child(2) {{ 
+    min-width: 300px;  /* TEAM column stays the same width */
+    text-align: left !important;
+    font-size: 15px !important;  /* slightly bigger font for team names */
+}}
+th:nth-child(3), td:nth-child(3) {{ min-width: 50px; }}  /* GP */
+th:nth-child(4), td:nth-child(4) {{ min-width: 50px; }}  /* PTS */
+th:nth-child(n+5), td:nth-child(n+5) {{ min-width: 60px; }}  /* probabilities */
+</style>
+"""
+
+st.markdown(full_width_css, unsafe_allow_html=True)
 st.markdown(styled_table.to_html(escape=False), unsafe_allow_html=True)
