@@ -1,6 +1,8 @@
-streamlit
 pandas
 numpy
 requests
 scipy
 matplotlib
+python-dotenv
+dataframe-image
+streamlit
