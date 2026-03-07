@@ -1,68 +1,99 @@
-# app.py
-
 # -------------------------------
 # 1️⃣ IMPORTS
 import streamlit as st
-import importlib.util
-import sys
-import pandas as pd
 import pickle
+import pandas as pd
+import numpy as np
 
 # -------------------------------
-# 2️⃣ HELPER: dynamic module import
-def import_module_from_path(module_name, path):
-    spec = importlib.util.spec_from_file_location(module_name, path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[module_name] = module
-    spec.loader.exec_module(module)
-    return module
+# 2️⃣ HELPER FUNCTIONS FOR STYLING
+
+def zero_style(val):
+    if val < 1:
+        return "background-color: white !important;"
+    return ""
+
+def color_scale(val, mid=0.14, max_val=0.75):
+    if val >= max_val:
+        return 1.0
+    elif val <= mid:
+        return val / mid * 0.5
+    else:
+        return 0.5 + (val - mid) / (max_val - mid) * 0.5
+
+def style_probabilities_table(df):
+    """
+    Apply gradient styling to probability columns while keeping POS/TEAM/GP/PTS nice.
+    """
+    prob_cols = df.columns.difference(["POS", "TEAM", "GP", "PTS"])
+    vmax = max(df[prob_cols].max().max(), 1)
+
+    styled = df.style
+    for col in prob_cols:
+        col_data = df[col].apply(lambda x: color_scale(x))
+        styled = styled.background_gradient(cmap="Greens", vmin=0, vmax=vmax, gmap=col_data, subset=[col])
+
+    styled = styled.applymap(zero_style, subset=prob_cols)
+    styled = styled.format({col: "{:.2f}%" for col in prob_cols}) \
+                   .set_properties(subset=["POS","GP","PTS"], **{"text-align":"center","font-weight":"600"}) \
+                   .set_properties(subset=["TEAM"], **{"text-align":"left","font-weight":"600"}) \
+                   .set_properties(subset=prob_cols, **{"text-align":"center","font-weight":"500"}) \
+                   .hide(axis="index")
+    return styled
 
 # -------------------------------
-# 3️⃣ IMPORT REQUIRED MODULES (just for constants/functions)
-dataset_processing = import_module_from_path("dataset_processing", "2_dataset_processing.py")
-dataset_simulation = import_module_from_path("dataset_simulation", "4_simulations.py")
+# 3️⃣ STREAMLIT APP
 
-# -------------------------------
-# 4️⃣ STREAMLIT APP
 st.set_page_config(page_title="Football League Simulation", layout="wide")
 st.title("⚽ Football League Monte Carlo Simulation")
 
-# -------------------------------
-# 5️⃣ Load precomputed results
+# --- Load precomputed results ---
 st.info("⏳ Loading precomputed simulation results...")
-with open("data/precomputed_pos_counts.pkl", "rb") as f:
-    position_distribution_all = pickle.load(f)
 
-with open("data/precomputed_pos_pct.pkl", "rb") as f:
-    position_distribution_pct_all = pickle.load(f)
+try:
+    with open("data/precomputed_pos_counts.pkl", "rb") as f:
+        position_distribution_all = pickle.load(f)
+    with open("data/precomputed_pos_pct.pkl", "rb") as f:
+        position_distribution_pct_all = pickle.load(f)
+    st.success("✅ Precomputed results loaded.")
+except Exception as e:
+    st.error(f"❌ Failed to load precomputed results: {e}")
+    st.stop()
 
-st.success("✅ Precomputed results loaded.")
+# --- Select League ---
+leagues = list(position_distribution_pct_all.keys())
+league = st.selectbox("Select League", leagues)
 
 # -------------------------------
-# 6️⃣ Sidebar league selection
-league = st.sidebar.selectbox(
-    "Select League",
-    dataset_processing.leagues
-)
+# 4️⃣ DISPLAY SELECTED LEAGUE
 
-# --- 7️⃣ Display selected league ---
-st.header(f"🏆 {league.replace('_', ' ').title()} Simulation Results")
+# Convert to DataFrame for display
+pos_pct_df = position_distribution_pct_all[league].copy()
+pos_pct_df = pos_pct_df.reset_index()
 
-# Get the precomputed percentage table
-pos_pct = position_distribution_pct_all.get(league)
+# Fix MultiIndex if present
+if isinstance(pos_pct_df.columns, pd.MultiIndex):
+    pos_pct_df.columns = [str(c) for c in pos_pct_df.columns]
 
-# Build a basic table for meta info (GP, PTS)
-table = pd.DataFrame({
-    "team": pos_pct.index,
-    "pts": 0,   # placeholder
-    "gd": 0,
-    "gp": 0,
-    "position": range(1, len(pos_pct)+1)
-})
+# Create columns POS, TEAM, GP, PTS if missing in index
+if "POS" not in pos_pct_df.columns:
+    pos_pct_df["POS"] = pos_pct_df.index + 1
+if "TEAM" not in pos_pct_df.columns:
+    pos_pct_df["TEAM"] = pos_pct_df.index.astype(str)
+if "GP" not in pos_pct_df.columns:
+    pos_pct_df["GP"] = 0
+if "PTS" not in pos_pct_df.columns:
+    pos_pct_df["PTS"] = 0
 
-# Style the table using your simulation module
-styled_table = dataset_simulation.style_position_table(pos_pct, table)
+# Ensure types
+pos_pct_df["TEAM"] = pos_pct_df["TEAM"].astype(str)
+pos_pct_df["POS"] = pos_pct_df["POS"].astype(int)
+pos_pct_df["GP"] = pos_pct_df["GP"].astype(int)
+pos_pct_df["PTS"] = pos_pct_df["PTS"].astype(int)
 
-# Convert the styled table to HTML and render safely in Streamlit
+st.header(f"🏆 {league.replace('_',' ').title()} Simulation Results")
 st.write("Styled probabilities table for league positions:")
-st.markdown(styled_table.to_html(), unsafe_allow_html=True)
+
+# Style and display
+styled_table = style_probabilities_table(pos_pct_df)
+st.dataframe(styled_table)
