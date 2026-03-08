@@ -219,3 +219,4 @@ utcDate,matchday,status,homeTeam,awayTeam,homeGoals,awayGoals,winner
 2026-03-07T16:00:00Z,25,FINISHED,FC Nantes,Angers SCO,0,1,AWAY_TEAM
 2026-03-07T18:00:00Z,25,FINISHED,AJ Auxerre,RC Strasbourg Alsace,0,0,DRAW
 2026-03-07T20:05:00Z,25,FINISHED,Toulouse FC,Olympique de Marseille,0,1,AWAY_TEAM
+2026-03-08T14:00:00Z,25,FINISHED,Racing Club de Lens,FC Metz,3,0,HOME_TEAM

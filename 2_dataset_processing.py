@@ -222,36 +222,36 @@ def process_datasets(globals_dict):
             }
         globals_dict[f"future_matches_{league}"] = future_matches
 
-    # 4c️⃣ Detect reverse fixtures (FIXED)
-    # Only look at future_matches for reverse fixtures
+    # 4c️⃣ Detect missing reverse fixtures (CORRECT LOGIC)
     for league in leagues:
+
         future_matches = globals_dict.get(f"future_matches_{league}")
-        league_table = globals_dict.get(f"past_matches_{league}_all")
-        if future_matches is None or league_table is None:
+        past_matches_all = globals_dict.get(f"past_matches_{league}_all")
+        league_table = globals_dict.get(league)
+
+        if future_matches is None or past_matches_all is None or league_table is None:
             continue
 
-        fixtures = normalize_columns(future_matches)  # 🔹 only future matches
+        # Only matches from THIS season
+        past_matches = filter_current_season(past_matches_all)
 
-        total_teams = len(league_table)
-        matches_per_team = (total_teams - 1) * 2  # standard round-robin
+        # Combine past + future
+        fixtures = season_fixtures(past_matches, future_matches)
 
-        # Count future matches only
-        played_counts = fixtures.homeTeam.value_counts().add(
-            fixtures.awayTeam.value_counts(), fill_value=0
-        )
+        league_teams = set(league_table["team"])
 
-        missing_teams = {
-            team: matches_per_team - played_counts.get(team, 0)
-            for team in league_table.get("team", [])
-            if matches_per_team - played_counts.get(team, 0) > 0
-        }
-
-        league_teams = set(league_table.get("team", []))
-        for team in missing_teams:
+        for team in league_teams:
             for opponent in league_teams - {team}:
-                result = find_missing_reverse_fixture(team, opponent, fixtures)
+
+                result = find_missing_reverse_fixture(
+                    team,
+                    opponent,
+                    fixtures
+                )
+
                 if result:
                     home, away = result
+
                     missing_fixtures.append({
                         "league": league,
                         "homeTeam": home,
@@ -259,7 +259,18 @@ def process_datasets(globals_dict):
                     })
 
     # 4d️⃣ Append missing fixtures (unchanged)
-    missing_df = pd.DataFrame(missing_fixtures).drop_duplicates().sort_values(["league","homeTeam"])
+    missing_df = pd.DataFrame(missing_fixtures)
+
+    if not missing_df.empty:
+        missing_df = (
+            missing_df
+            .drop_duplicates()
+            .sort_values(["league", "homeTeam"])
+            .reset_index(drop=True)
+        )
+    else:
+        missing_df = pd.DataFrame(columns=["league", "homeTeam", "awayTeam"])
+
     future_matches_backup = {}
 
     for league in missing_df["league"].unique():
