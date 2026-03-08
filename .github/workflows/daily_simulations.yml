@@ -1,44 +1,48 @@
 name: Daily Football Simulations
 
 on:
-  workflow_dispatch:  # allows manual trigger
   schedule:
-    - cron: '0 2 * * *'  # runs daily at 02:00 UTC
+    - cron: "0 2 * * *"   # Runs every day at 02:00 UTC
+  workflow_dispatch:       # Allows manual trigger
 
 jobs:
   run-simulations:
     runs-on: ubuntu-latest
-
+    defaults:
+      run:
+        shell: bash
     steps:
-      # 1️⃣ Checkout the repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # 2️⃣ Set up Python
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"  # Match your local Python version
 
-      # 3️⃣ Install dependencies
       - name: Install dependencies
-        run: pip install -r requirements.txt
-        working-directory: ./  # root folder
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+        shell: bash
 
-      # 4️⃣ Ensure folders exist (data, logs, backups)
-      - name: Create necessary folders
+      - name: Prepare folders
         run: |
           mkdir -p data logs backups
-        working-directory: ./
+        shell: bash
 
-      # 5️⃣ Run the precompute_simulations script
       - name: Run simulations
-        run: python precompute_simulations.py
-        working-directory: ./  # adjust if your script is in a subfolder
+        run: |
+          echo "Running simulations at $(date -u +%Y-%m-%d_%H%M%S UTC)"
+          # Fail fast and print errors
+          set -euo pipefail
+          python precompute_simulations.py
+        shell: bash
 
-      # 6️⃣ Optional: upload generated data as artifacts
-      - name: Upload precomputed results
-        uses: actions/upload-artifact@v3
-        with:
-          name: precomputed-results
-          path: data/
+      - name: List outputs
+        run: |
+          echo "Listing data folder contents:"
+          ls -l data
+          echo "Listing logs folder contents:"
+          ls -l logs
+        shell: bash
