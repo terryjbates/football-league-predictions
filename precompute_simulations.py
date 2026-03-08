@@ -76,7 +76,7 @@ print("4️⃣ Running Monte Carlo simulations...")
 tables_all = {lg: standings.get(lg, pd.DataFrame()) for lg in dataset_processing.leagues}
 
 position_distribution_all, position_distribution_pct_all, _ = dataset_simulation.simulate_leagues(
-    dataset_processing.leagues, df_simulation_all, tables_all, n_sim=5000
+    dataset_processing.leagues, df_simulation_all, tables_all, n_sim=10000
 )
 print("✅ Simulations complete.")
 

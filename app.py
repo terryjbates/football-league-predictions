@@ -40,7 +40,7 @@ def style_probabilities_table(df):
     text_cols = ["POS", "TEAM", "GP", "PTS"]
     num_cols = display_df.columns.difference(text_cols)
 
-    # Safe vmax handling in case DataFrame is empty
+    # Safe vmax handling
     vmax = max(display_df[num_cols].max().max(), 1) if not display_df[num_cols].empty else 1
     color_data = display_df[num_cols].divide(vmax).apply(lambda s: s.map(color_scale)) * vmax
 
@@ -77,11 +77,11 @@ def style_probabilities_table(df):
 
 # -------------------------------
 # 3️⃣ STREAMLIT APP
-st.set_page_config(page_title="Football League Simulation", layout="wide")
+st.set_page_config(page_title="Football League Simulator", layout="wide")
 
 # -------------------------------
 # 4️⃣ TITLE AND CENTERING CSS
-st.title("⚽ Football League Season Simulation")
+st.title("⚽ Football League Season Simulator")
 
 center_css = """
 <style>
@@ -104,8 +104,6 @@ div.stSelectbox > label, div.stSelectbox > div {
     align-items: center;
     width: 100%;
 }
-
-/* Limit the width of the actual dropdown */
 div.stSelectbox > div > div[role="combobox"] {
     max-width: 300px;
     min-width: 200px;
@@ -115,7 +113,7 @@ div.stSelectbox > div > div[role="combobox"] {
 st.markdown(selectbox_css, unsafe_allow_html=True)
 
 # -------------------------------
-# Load pickle and show last run time
+# 5️⃣ LOAD PICKLES
 pct_file = "data/precomputed_pos_pct.pkl"
 counts_file = "data/precomputed_pos_counts.pkl"
 
@@ -141,7 +139,7 @@ except Exception as e:
     st.error(f"❌ Failed to load precomputed results: {e}")
 
 # -------------------------------
-# Friendly league names + mapping to pickle keys
+# 6️⃣ LEAGUE SELECTION
 league_display_names = [
     "Premier League (England)",
     "Serie A (Italy)",
@@ -162,14 +160,13 @@ selected_display_name = st.selectbox("Select League", league_display_names)
 league = league_key_map[selected_display_name]
 
 # -------------------------------
-# Display league table safely
+# 7️⃣ DISPLAY LEAGUE TABLE SAFELY
 if league in position_distribution_pct_all and not position_distribution_pct_all[league].empty:
     pos_pct_df = position_distribution_pct_all[league].copy().reset_index()
 else:
-    # fallback empty table if pickle missing
     pos_pct_df = pd.DataFrame(columns=["POS","TEAM","GP","PTS"])
 
-# Flatten MultiIndex columns if any
+# Flatten MultiIndex if needed
 if isinstance(pos_pct_df.columns, pd.MultiIndex):
     pos_pct_df.columns = [str(c) for c in pos_pct_df.columns]
 
@@ -183,7 +180,7 @@ for col in ["POS","TEAM","GP","PTS"]:
         else:
             pos_pct_df[col] = ""
 
-# Force correct dtypes
+# Force dtypes
 pos_pct_df["TEAM"] = pos_pct_df["TEAM"].astype(str)
 pos_pct_df["POS"] = pos_pct_df["POS"].astype(int)
 pos_pct_df["GP"] = pos_pct_df["GP"].astype(int)
@@ -192,33 +189,35 @@ pos_pct_df["PTS"] = pos_pct_df["PTS"].astype(int)
 st.header(f"🏆 {selected_display_name} Simulation Results")
 
 # -------------------------------
-# 5️⃣ STYLE AND DISPLAY FULL WIDTH (TEAM column wider)
+# 8️⃣ STYLE AND DISPLAY FULL WIDTH RESPONSIVE
 styled_table, num_cols = style_probabilities_table(pos_pct_df)
 
-full_width_css = f"""
+responsive_table_css = """
 <style>
-table {{
+div.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+table {
     width: 100% !important;
-    table-layout: auto !important;
-}}
-th, td {{
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+th, td {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
     text-align: center !important;
-    font-size: 14px !important;  /* bigger font for all cells */
-}}
-th:nth-child(1), td:nth-child(1) {{ min-width: 40px; }}  /* POS */
-th:nth-child(2), td:nth-child(2) {{ 
-    min-width: 300px;  /* TEAM column */
-    text-align: left !important;
-    font-size: 15px !important;  
-}}
-th:nth-child(3), td:nth-child(3) {{ min-width: 50px; }}  /* GP */
-th:nth-child(4), td:nth-child(4) {{ min-width: 50px; }}  /* PTS */
-th:nth-child(n+5), td:nth-child(n+5) {{ min-width: 60px; }}  /* probabilities */
+    font-size: 14px !important;
+}
+th:nth-child(1), td:nth-child(1) { width: 40px; }  /* POS */
+th:nth-child(2), td:nth-child(2) { width: 300px; text-align: left !important; font-size: 15px; }  /* TEAM */
+th:nth-child(3), td:nth-child(3) { width: 50px; }  /* GP */
+th:nth-child(4), td:nth-child(4) { width: 50px; }  /* PTS */
+th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }  /* probabilities */
 </style>
 """
 
-st.markdown(full_width_css, unsafe_allow_html=True)
-st.markdown(styled_table.to_html(escape=False), unsafe_allow_html=True)
+st.markdown(responsive_table_css, unsafe_allow_html=True)
+st.markdown(f'<div class="table-wrapper">{styled_table.to_html(escape=False)}</div>', unsafe_allow_html=True)
