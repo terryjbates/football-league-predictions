@@ -40,7 +40,6 @@ def style_probabilities_table(df):
     text_cols = ["POS", "TEAM", "GP", "PTS"]
     num_cols = display_df.columns.difference(text_cols)
 
-    # Safe vmax handling
     vmax = max(display_df[num_cols].max().max(), 1) if not display_df[num_cols].empty else 1
     color_data = display_df[num_cols].divide(vmax).apply(lambda s: s.map(color_scale)) * vmax
 
@@ -76,28 +75,23 @@ def style_probabilities_table(df):
     return styled, num_cols
 
 # -------------------------------
-# 3️⃣ STREAMLIT APP
-st.set_page_config(page_title="Football League Simulator", layout="wide")
+# 3️⃣ STREAMLIT APP CONFIG
+st.set_page_config(page_title="Football League Simulator", layout="wide", page_icon="⚽")
 
 # -------------------------------
-# 4️⃣ TITLE AND CENTERING CSS
-st.title("⚽ Football League Season Simulator")
-
-center_css = """
+# 4️⃣ PAGE STYLING (PALE GREY BACKGROUND + CENTERED TEXT)
+st.markdown("""
 <style>
-h1, h2, h3, .stMarkdown p, .stSelectbox label {
-    text-align: center !important;
-    width: 100%;
+body, .main { background-color: #f8f9fa; }
+
+/* Center headings & paragraphs */
+h1, h2, h3, .stMarkdown p, .stSelectbox label { 
+    text-align: center !important; 
+    width: 100%; 
     display: block;
 }
-</style>
-"""
-st.markdown(center_css, unsafe_allow_html=True)
 
-# -------------------------------
-# 4.1️⃣ SHORTER AND CENTERED SELECTBOX
-selectbox_css = """
-<style>
+/* Selectbox styling */
 div.stSelectbox > label, div.stSelectbox > div {
     display: flex;
     justify-content: center;
@@ -109,11 +103,20 @@ div.stSelectbox > div > div[role="combobox"] {
     min-width: 200px;
 }
 </style>
-"""
-st.markdown(selectbox_css, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # -------------------------------
-# 5️⃣ LOAD PICKLES
+# 5️⃣ TITLE AND INTRODUCTION
+st.title("⚽ Football League Simulator")
+st.markdown("""
+**Data-driven forecasts for final positions across Europe’s top 5 football leagues (2025–26).**
+
+This app simulates every remaining fixture **10,000 times**, producing **10,000 full season scenarios** per league.  
+The results are aggregated to generate **probabilities for each team finishing in each league position**.
+""")
+
+# -------------------------------
+# 6️⃣ LOAD PICKLES
 pct_file = "data/precomputed_pos_pct.pkl"
 counts_file = "data/precomputed_pos_counts.pkl"
 
@@ -134,12 +137,11 @@ try:
         st.info(f"Simulations last run on: {formatted_time} UTC")
     else:
         st.warning("⚠️ No precomputed simulation results found. Table will be empty.")
-
 except Exception as e:
     st.error(f"❌ Failed to load precomputed results: {e}")
 
 # -------------------------------
-# 6️⃣ LEAGUE SELECTION
+# 7️⃣ LEAGUE SELECTION
 league_display_names = [
     "Premier League (England)",
     "Serie A (Italy)",
@@ -160,17 +162,15 @@ selected_display_name = st.selectbox("Select League", league_display_names)
 league = league_key_map[selected_display_name]
 
 # -------------------------------
-# 7️⃣ DISPLAY LEAGUE TABLE SAFELY
+# 8️⃣ PREPARE DATAFRAME
 if league in position_distribution_pct_all and not position_distribution_pct_all[league].empty:
     pos_pct_df = position_distribution_pct_all[league].copy().reset_index()
 else:
     pos_pct_df = pd.DataFrame(columns=["POS","TEAM","GP","PTS"])
 
-# Flatten MultiIndex if needed
 if isinstance(pos_pct_df.columns, pd.MultiIndex):
     pos_pct_df.columns = [str(c) for c in pos_pct_df.columns]
 
-# Ensure required columns exist
 for col in ["POS","TEAM","GP","PTS"]:
     if col not in pos_pct_df.columns:
         if col == "POS":
@@ -180,7 +180,6 @@ for col in ["POS","TEAM","GP","PTS"]:
         else:
             pos_pct_df[col] = ""
 
-# Force dtypes
 pos_pct_df["TEAM"] = pos_pct_df["TEAM"].astype(str)
 pos_pct_df["POS"] = pos_pct_df["POS"].astype(int)
 pos_pct_df["GP"] = pos_pct_df["GP"].astype(int)
@@ -189,12 +188,12 @@ pos_pct_df["PTS"] = pos_pct_df["PTS"].astype(int)
 st.header(f"🏆 {selected_display_name} Simulation Results")
 
 # -------------------------------
-# 8️⃣ STYLE AND DISPLAY FULL WIDTH RESPONSIVE (DYNAMIC WIDTH)
+# 9️⃣ STYLE AND DISPLAY TABLE (EXPAND DYNAMICALLY)
 styled_table, num_cols = style_probabilities_table(pos_pct_df)
 
 responsive_table_css = """
 <style>
-/* Wrapper allows horizontal scroll on small screens */
+/* Wrapper for horizontal scroll on small screens */
 div.table-wrapper {
     width: 100%;
     overflow-x: auto;
@@ -204,7 +203,7 @@ div.table-wrapper {
 /* Table stretches naturally */
 table {
     width: 100% !important;
-    table-layout: auto !important;  /* Let columns resize automatically */
+    table-layout: auto !important;
     border-collapse: collapse;
 }
 
@@ -217,10 +216,10 @@ th, td {
     padding: 4px 6px !important;
 }
 
-/* TEAM column left-aligned, flexible width */
+/* TEAM column left-aligned */
 th:nth-child(2), td:nth-child(2) {
     text-align: left !important;
-    min-width: 150px;  /* Minimum width for team names */
+    min-width: 150px;
 }
 
 /* Other numeric columns flexible */
@@ -229,7 +228,7 @@ th:nth-child(3), td:nth-child(3) { min-width: 50px; }
 th:nth-child(4), td:nth-child(4) { min-width: 50px; }
 th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }
 
-/* Optional: smaller font for probabilities on narrow screens */
+/* Reduce font-size on very narrow screens */
 @media (max-width: 600px) {
     th, td { font-size: 12px !important; }
     th:nth-child(2), td:nth-child(2) { min-width: 120px; }
@@ -240,3 +239,42 @@ th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }
 
 st.markdown(responsive_table_css, unsafe_allow_html=True)
 st.markdown(f'<div class="table-wrapper">{styled_table.to_html(escape=False)}</div>', unsafe_allow_html=True)
+st.caption("Table shows % probability of each team finishing in each position based on 10,000 simulated seasons.")
+
+# -------------------------------
+# 🔟 SIMULATION METHODOLOGY
+with st.expander("📌 How this simulation works"):
+    st.markdown("""
+    **Step 1 – Historical Data:** Collect past results and team stats.  
+    **Step 2 – Team Strengths:** Compute offensive and defensive strengths.  
+    **Step 3 – Match Simulation:** Simulate each remaining fixture **10,000 times**.  
+    **Step 4 – Full Season Simulation:** Combine all fixtures to produce **10,000 season scenarios**.  
+    **Step 5 – Probabilities:** Calculate frequency of teams finishing in each position across all scenarios.
+    """)
+
+# -------------------------------
+# 11️⃣ DOWNLOAD OPTION
+csv = pos_pct_df.to_csv(index=False).encode('utf-8')
+st.download_button(
+    label="Download table as CSV",
+    data=csv,
+    file_name=f"{league}_final_positions.csv",
+    mime="text/csv",
+)
+
+# -------------------------------
+# 12️⃣ ABOUT ME & LINKS
+st.markdown("---")
+st.header("About Me")
+st.markdown("""
+Hi, I'm Victoria Friss de Kereki, a Data Scientist working in sports analytics and applied modelling.  
+
+I build probabilistic football simulations and predictive models for Europe’s top leagues, and  
+write about football, performance data, and how context changes what the numbers really mean.
+""")
+
+st.markdown("""
+📄 [Read my Medium](https://medium.com/@vickyfrissdekereki)  
+💼 [LinkedIn](https://www.linkedin.com/in/victoria-friss-de-kereki/)  
+✉️ [Send me an email](mailto:vicky_friss@hotmail.com)
+""")
