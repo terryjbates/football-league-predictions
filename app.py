@@ -116,10 +116,20 @@ st.markdown(selectbox_css, unsafe_allow_html=True)
 
 
 # -------------------------------
-# Load pickle and show last run time
-
+# Load pickle and show last run time (robust)
 pct_file = "data/precomputed_pos_pct.pkl"
 counts_file = "data/precomputed_pos_counts.pkl"
+
+position_distribution_all = {}
+position_distribution_pct_all = {}
+
+fallback_df = pd.DataFrame({
+    "POS": range(1,21),
+    "TEAM": [f"Team {i}" for i in range(1,21)],
+    "GP": [0]*20,
+    "PTS": [0]*20,
+    **{f"Prob {i}": [0]*20 for i in range(1,21)}
+})
 
 try:
     with open(counts_file,"rb") as f:
@@ -133,9 +143,18 @@ try:
     st.info(f"Simulations last run on: {formatted_time} UTC")
 
 except Exception as e:
-    st.error(f"❌ Failed to load precomputed results: {e}")
-    st.stop()
+    st.warning(f"⚠️ Could not load precomputed results: {e}")
+    st.info("Showing fallback table with zeros. The app will work, but data may be outdated.")
 
+# -------------------------------
+# Display league table
+selected_display_name = st.selectbox("Select League", league_display_names)
+league = league_key_map[selected_display_name]
+
+if position_distribution_pct_all.get(league):
+    pos_pct_df = position_distribution_pct_all[league].copy().reset_index()
+else:
+    pos_pct_df = fallback_df.copy()
 # -------------------------------
 # Friendly league names + mapping to pickle keys
 league_display_names = [
