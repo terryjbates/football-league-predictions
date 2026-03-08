@@ -47,7 +47,7 @@ def style_probabilities_table(df):
     styled = (
         display_df.style
         .background_gradient(cmap=green_cmap, vmin=0, vmax=vmax, gmap=color_data, axis=None)
-        .applymap(zero_style, subset=num_cols)
+        .map(zero_style, subset=num_cols)
         .format({col: "{:.2f}%" for col in num_cols})
         .set_properties(subset=["POS","GP","PTS"], **{
             "text-align":"center","font-family":"Inter, Roboto, Arial, sans-serif",
