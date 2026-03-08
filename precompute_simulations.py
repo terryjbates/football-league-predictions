@@ -21,7 +21,7 @@ dataset_simulation = import_module_from_path("dataset_simulation", "4_simulation
 
 # === 1️⃣ Create datasets ===
 print("1️⃣ Creating datasets...")
-standings, odds_book, fixtures = dataset_creation.create_datasets(save_csv=True)
+standings, odds_book, fixtures, past_results = dataset_creation.create_datasets(save_csv=True)
 print("✅ Datasets created.")
 
 # === 2️⃣ Process datasets ===

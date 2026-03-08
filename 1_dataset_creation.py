@@ -107,19 +107,18 @@ def flatten_odds(data):
         match_id = match["id"]
         home = match["home_team"]
         away = match["away_team"]
-        time = match["commence_time"]
+        time_ = match["commence_time"]
 
         for book in match["bookmakers"]:
             bookmaker = book["title"]
             h2h = next((m for m in book["markets"] if m["key"] == "h2h"), None)
             if not h2h:
                 continue
-
             outcomes = {o["name"]: o["price"] for o in h2h["outcomes"]}
 
             rows.append({
                 "match_id": match_id,
-                "commence_time": time,
+                "commence_time": time_,
                 "home_team": home,
                 "away_team": away,
                 "bookmaker": bookmaker,
@@ -178,24 +177,70 @@ def load_fixtures():
     return fixtures_data
 
 # -------------------------------
-# 6️⃣ Combine past and future matches
-def combine_past_future(past_2025, past_2024, future):
-    combined = pd.concat([past_2024, past_2025], ignore_index=True)
-    return combined, future
+# 6️⃣ Fetch past season results
+def fetch_past_season_results(seasons=[2025, 2024]):
+    load_dotenv("API_KEY.env")
+    API_KEY = os.getenv("FOOTBALL_DATA_API_KEY")
+    if API_KEY is None:
+        raise ValueError("API_KEY not found in API_KEY.env")
+
+    competitions = {
+        "PL": "premierleague_england",
+        "SA": "seriea_italy",
+        "PD": "laliga_spain",
+        "BL1": "bundesliga_germany",
+        "FL1": "ligue1_france",
+    }
+
+    headers = {"X-Auth-Token": API_KEY}
+    past_matches = {}
+
+    for comp_code, league_name in competitions.items():
+        past_matches[league_name] = {}
+        for season in seasons:
+            print(f"Fetching {league_name} season {season}...")
+            url = f"https://api.football-data.org/v4/competitions/{comp_code}/matches"
+            params = {"season": season, "status": "FINISHED"}
+
+            response = requests.get(url, headers=headers, params=params)
+            response.raise_for_status()
+            matches = response.json()["matches"]
+
+            clean_rows = []
+            for m in matches:
+                clean_rows.append({
+                    "utcDate": m["utcDate"],
+                    "matchday": m.get("matchday"),
+                    "status": m["status"],
+                    "homeTeam": m["homeTeam"]["name"],
+                    "awayTeam": m["awayTeam"]["name"],
+                    "homeGoals": m["score"]["fullTime"]["home"],
+                    "awayGoals": m["score"]["fullTime"]["away"],
+                    "winner": m["score"]["winner"],
+                })
+            df_clean = pd.DataFrame(clean_rows)
+            past_matches[league_name][season] = df_clean
+            time.sleep(10)  # polite API request interval
+
+    return past_matches
 
 # -------------------------------
-# 7️⃣ Master function to create everything
+# 7️⃣ Master function to create all datasets
 def create_datasets(save_csv=True):
     print("Scraping league standings...")
     standings = scrape_standings()
+
     print("Loading betting odds...")
     odds_raw = load_betting_odds()
     odds_dfs = {k: flatten_odds(v) for k,v in odds_raw.items()}
     odds_book = {k: compute_implied_probs(v) for k,v in odds_dfs.items()}
+
     print("Loading fixtures...")
     fixtures = load_fixtures()
 
-    # Optionally save CSVs
+    print("Fetching past season results...")
+    past_results = fetch_past_season_results()
+
     if save_csv:
         os.makedirs("data", exist_ok=True)
         for name, df in standings.items():
@@ -204,8 +249,12 @@ def create_datasets(save_csv=True):
             df.to_csv(f"data/{name}.csv", index=False)
         for name, df in fixtures.items():
             df.to_csv(f"data/{name}.csv", index=False)
+        for league_name, seasons_dict in past_results.items():
+            for season, df in seasons_dict.items():
+                df.to_csv(f"data/past_{league_name}_{season}.csv", index=False)
+
     print("Datasets created and saved to 'data/' folder.")
-    return standings, odds_book, fixtures
+    return standings, odds_book, fixtures, past_results
 
 # -------------------------------
 if __name__ == "__main__":
