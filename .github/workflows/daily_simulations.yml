@@ -1,17 +1,16 @@
 name: Daily Football Simulations
 
-# Run on schedule (once per day at 4am UTC)
 on:
   schedule:
-    - cron: "0 4 * * *"
-  workflow_dispatch:  # allows manual trigger
+    - cron: "0 0 * * *"   # Daily at midnight UTC
+  workflow_dispatch:       # Manual trigger
 
 jobs:
   run-simulations:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Check out the repository
+      # 1️⃣ Checkout repository
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -19,7 +18,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"  # match your environment
+          python-version: "3.10"
 
       # 3️⃣ Install dependencies
       - name: Install dependencies
@@ -27,16 +26,25 @@ jobs:
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
-      # 4️⃣ Run precompute_simulations.py
+      # 4️⃣ Run precompute_simulations.py and log output
       - name: Run simulations
         run: |
-          python precompute_simulations.py
+          mkdir -p logs backups
+          TIMESTAMP=$(date -u +"%Y%m%d_%H%M%S")
+          LOGFILE="logs/simulations_$TIMESTAMP.log"
+          echo "Running simulations at $TIMESTAMP UTC" | tee -a $LOGFILE
+          python precompute_simulations.py >> $LOGFILE 2>&1
+          echo "Simulation finished at $(date -u +"%Y%m%d_%H%M%S") UTC" | tee -a $LOGFILE
 
-      # 5️⃣ Commit & push updated pickle files (optional)
-      - name: Commit updated results
+          # Save backups of pickle files
+          cp data/precomputed_pos_pct.pkl backups/precomputed_pos_pct_$TIMESTAMP.pkl
+          cp data/precomputed_pos_counts.pkl backups/precomputed_pos_counts_$TIMESTAMP.pkl
+
+      # 5️⃣ Commit updated files and logs
+      - name: Commit & push results
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/precomputed_pos_pct.pkl data/precomputed_pos_counts.pkl
-          git commit -m "Update simulation results [skip ci]" || echo "No changes to commit"
+          git add data/precomputed_pos_pct.pkl data/precomputed_pos_counts.pkl logs backups
+          git commit -m "Update simulation results: $TIMESTAMP [skip ci]" || echo "No changes to commit"
           git push
