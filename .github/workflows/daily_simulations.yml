@@ -1,14 +1,16 @@
+```yaml
 name: Daily Football Simulations
 
 on:
   schedule:
-    - cron: '0 1 * * *'  # daily at 01:00 UTC
-  workflow_dispatch:
+    - cron: '0 1 * * *'  # Run daily at 01:00 UTC
+  workflow_dispatch:     # Allow manual runs
 
 jobs:
   run-simulations:
     runs-on: ubuntu-latest
 
+    # Allow workflow to push commits to the repo
     permissions:
       contents: write
 
@@ -35,17 +37,17 @@ jobs:
         run: |
           mkdir -p data logs backups
 
-      # 5️⃣ Run simulations
+      # 5️⃣ Run simulations and capture logs
       - name: Run precompute_simulations.py
         env:
           ODDS_DATA_API_KEY: ${{ secrets.ODDS_DATA_API_KEY }}
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
         run: |
           set -euo pipefail
-          echo "Running simulations at $(date -u +'%Y-%m-%d_%H%M%S UTC')"
+          echo "Running simulations at $(date -u +"%Y-%m-%d_%H%M%S_UTC")"
           python precompute_simulations.py 2>&1 | tee logs/github_actions_run.log || exit ${PIPESTATUS[0]}
 
-      # 6️⃣ Commit updated data automatically
+      # 6️⃣ Commit updated simulation results
       - name: Commit and push updated data
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
@@ -59,10 +61,11 @@ jobs:
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 
-      # 7️⃣ Upload logs
+      # 7️⃣ Upload logs as artifact
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: github-actions-log
           path: logs/github_actions_run.log
+```
