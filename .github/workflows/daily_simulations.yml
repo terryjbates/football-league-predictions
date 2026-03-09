@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout repo
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
@@ -33,13 +33,15 @@ jobs:
         run: |
           mkdir -p data logs backups
 
-      # 5️⃣ Run simulations
+      # 5️⃣ Run simulations and capture logs
       - name: Run precompute_simulations.py
+        continue-on-error: false
         run: |
+          set -euo pipefail
           echo "Running simulations at $(date -u +%Y-%m-%d_%H%M%S UTC)"
-          python precompute_simulations.py
+          python precompute_simulations.py 2>&1 | tee logs/github_actions_run.log
 
-      # 6️⃣ Commit and push updates if any
+      # 6️⃣ Commit and push updated data if any
       - name: Commit and push updated data
         run: |
           git config --local user.name "github-actions[bot]"
@@ -47,3 +49,11 @@ jobs:
           git add data/ logs/ backups/
           git diff-index --quiet HEAD || git commit -m "Update precomputed data [skip ci]"
           git push origin HEAD
+
+      # 7️⃣ Upload logs as artifact
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: github-actions-log
+          path: logs/github_actions_run.log
