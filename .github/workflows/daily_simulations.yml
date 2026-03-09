@@ -14,7 +14,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v3
         with:
-          persist-credentials: true
+          persist-credentials: false
 
       # 2️⃣ Setup Python
       - name: Set up Python
@@ -40,19 +40,24 @@ jobs:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
         run: |
           set -euo pipefail
-          echo "Running simulations at $(date -u +%Y-%m-%d_%H%M%S UTC)"
+          echo "Running simulations at $(date -u +'%Y-%m-%d_%H%M%S UTC')"
           python precompute_simulations.py 2>&1 | tee logs/github_actions_run.log || exit ${PIPESTATUS[0]}
 
-      # 6️⃣ Commit and push updated pickles and new timestamped simulation CSVs
+      # 6️⃣ Commit and push updated data
       - name: Commit and push updated data
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config --local user.name "github-actions[bot]"
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/precomputed_pos_counts.pkl data/precomputed_pos_pct.pkl data/simulations/* logs/ backups/
-          git diff-index --quiet HEAD || git commit -m "Update precomputed data [skip ci]"
-          git push origin HEAD
 
-      # 7️⃣ Upload logs as artifact (v4)
+          git add data/precomputed_pos_counts.pkl data/precomputed_pos_pct.pkl data/simulations/* logs/ backups/
+
+          git diff-index --quiet HEAD || git commit -m "Update precomputed data [skip ci]"
+
+          git push https://x-access-token:${GH_PAT}@github.com/vickyfriss/football-league-predictions.git HEAD
+
+      # 7️⃣ Upload logs as artifact
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
