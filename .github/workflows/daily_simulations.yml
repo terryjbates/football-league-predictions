@@ -12,13 +12,13 @@ jobs:
     steps:
       # 1️⃣ Checkout repository
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           persist-credentials: false
 
       # 2️⃣ Setup Python
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -55,7 +55,10 @@ jobs:
 
           git diff-index --quiet HEAD || git commit -m "Update precomputed data [skip ci]"
 
-          git push https://x-access-token:${GH_PAT}@github.com/vickyfriss/football-league-predictions.git HEAD
+          # Pull latest changes in case repo changed during the run
+          git pull --rebase https://x-access-token:${GH_PAT}@github.com/vickyfriss/football-league-predictions.git main
+
+          git push https://x-access-token:${GH_PAT}@github.com/vickyfriss/football-league-predictions.git HEAD:main
 
       # 7️⃣ Upload logs as artifact
       - name: Upload logs
