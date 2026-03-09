@@ -31,7 +31,7 @@ jobs:
       # 4️⃣ Prepare folders
       - name: Prepare folders
         run: |
-          mkdir -p data logs backups
+          mkdir -p data/simulations logs backups
 
       # 5️⃣ Run simulations and capture logs
       - name: Run precompute_simulations.py
@@ -40,9 +40,10 @@ jobs:
           FOOTBALL_DATA_API_KEY: ${{ secrets.FOOTBALL_DATA_API_KEY }}
         run: |
           set -euo pipefail
-          echo "Running simulations at $(date -u +"%Y-%m-%d_%H%M%S_UTC")"
-          python precompute_simulations.py 2>&1 | tee logs/github_actions_run.log || exit ${PIPESTATUS[0]}
-
+          LOG_FILE="logs/github_actions_run.log"
+          echo "Running simulations at $(date -u +"%Y-%m-%d_%H%M%S_UTC")" | tee -a $LOG_FILE
+          python precompute_simulations.py 2>&1 | tee -a $LOG_FILE
+          
       # 5.5️⃣ Update redeploy trigger (forces Streamlit to reload)
       - name: Update redeploy trigger
         run: |
@@ -57,11 +58,10 @@ jobs:
             data/precomputed_pos_counts.pkl
             data/precomputed_pos_pct.pkl
             data/simulations/**
-            logs/*
-            backups/*
             data/last_updated.txt
           commit_user_name: github-actions[bot]
           commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
+          branch: main  # or the branch you want to push to
 
       # 7️⃣ Upload logs as artifact
       - name: Upload logs
