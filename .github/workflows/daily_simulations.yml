@@ -9,12 +9,14 @@ jobs:
   run-simulations:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
-      # 1️⃣ Checkout repository using PAT
+
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
 
       # 2️⃣ Setup Python
       - name: Set up Python
@@ -33,7 +35,7 @@ jobs:
         run: |
           mkdir -p data logs backups
 
-      # 5️⃣ Run simulations and capture logs
+      # 5️⃣ Run simulations
       - name: Run precompute_simulations.py
         env:
           ODDS_DATA_API_KEY: ${{ secrets.ODDS_DATA_API_KEY }}
@@ -43,24 +45,21 @@ jobs:
           echo "Running simulations at $(date -u +'%Y-%m-%d_%H%M%S UTC')"
           python precompute_simulations.py 2>&1 | tee logs/github_actions_run.log || exit ${PIPESTATUS[0]}
 
-      # 6️⃣ Commit and push updated data
+      # 6️⃣ Commit updated data automatically
       - name: Commit and push updated data
-        run: |
-          git config --local user.name "vickyfriss"
-          git config --local user.email "vickyfriss@users.noreply.github.com"
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "Update precomputed simulations [skip ci]"
+          file_pattern: |
+            data/precomputed_pos_counts.pkl
+            data/precomputed_pos_pct.pkl
+            data/simulations/*
+            logs/*
+            backups/*
+          commit_user_name: github-actions[bot]
+          commit_user_email: 41898282+github-actions[bot]@users.noreply.github.com
 
-          git add data/precomputed_pos_counts.pkl \
-                  data/precomputed_pos_pct.pkl \
-                  data/simulations/* \
-                  logs/ \
-                  backups/
-
-          git diff-index --quiet HEAD || git commit -m "Update precomputed data [skip ci]"
-
-          git pull --rebase origin main
-          git push origin main
-
-      # 7️⃣ Upload logs as artifact
+      # 7️⃣ Upload logs
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
