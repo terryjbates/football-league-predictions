@@ -337,7 +337,7 @@ We then run <b>10,000 Monte Carlo simulations</b> for all remaining fixtures to 
 </li>
 <li style="margin-bottom:15px; display:flex; align-items:flex-start;">
 <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>2</div>
-<div><b>Fixtures:</b> Historical match results and remaining fixtures obtained via the <a href="https://www.football-data.org/" target="_blank">Football-Data API</a>.</div>
+<div><b>Fixtures:</b> Historical match results and remaining fixtures obtained via the <a href="https://www.football-data.org/" target="_blank">Football-Data.org API</a>.</div>
 </li>
 <li style="margin-bottom:15px; display:flex; align-items:flex-start;">
 <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>3</div>
