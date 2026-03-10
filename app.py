@@ -95,7 +95,7 @@ def load_simulation_data():
     except Exception:
         return {}
 
-# -------------------------------
+# ------------------------------- 
 # 5️⃣ PAGE STYLING + SELECTBOX + CONTACT PANEL
 
 st.markdown("""
@@ -103,15 +103,42 @@ st.markdown("""
 body, .main { background-color: #f2f2f2; font-family: Inter, Roboto, Arial, sans-serif; }
 h1, h2, h3, .stMarkdown p, .stSelectbox label { text-align: center !important; }
 
-/* Table responsiveness */
+/* Table wrapper remains scrollable */
 div.table-wrapper { width: 100%; overflow-x: auto; }
-table { width: 100% !important; border-collapse: collapse; }
-th, td { overflow: visible !important; white-space: normal !important; text-align: center !important; font-size: 14px !important; padding: 4px 6px !important; }
-th:nth-child(2), td:nth-child(2) { text-align: left !important; min-width: 150px; }
-th:nth-child(1), td:nth-child(1) { width: 40px; }
-th:nth-child(3), td:nth-child(3) { min-width: 50px; }
-th:nth-child(4), td:nth-child(4) { min-width: 50px; }
-th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }
+
+/* Desktop: normal table, nothing changes */
+@media (min-width: 601px) {
+    table { width: 100%; border-collapse: collapse; }
+    th, td { overflow: visible !important; white-space: normal !important; text-align: center !important; font-size: 14px !important; padding: 4px 6px !important; }
+    th:nth-child(2), td:nth-child(2) { text-align: left !important; min-width: 150px; }
+    th:nth-child(1), td:nth-child(1) { width: 40px; }
+    th:nth-child(3), td:nth-child(3) { min-width: 50px; }
+    th:nth-child(4), td:nth-child(4) { min-width: 50px; }
+    th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }
+}
+
+/* Mobile: fix first two columns when scrolling horizontally */
+@media (max-width: 600px) {
+    table { width: 100%; border-collapse: collapse; }
+    th, td { white-space: nowrap; }
+
+    /* Sticky first column: POS */
+    th:nth-child(1), td:nth-child(1) {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        background-color: inherit;
+    }
+
+    /* Sticky second column: TEAM */
+    th:nth-child(2), td:nth-child(2) {
+        position: sticky;
+        left: 40px; /* match the width of the POS column */
+        z-index: 2;
+        background-color: inherit;
+        text-align: left !important;
+    }
+}
 
 /* Simulation methodology styling */
 .sim-step { background-color: #ffffff; border-left: 4px solid #1f77b4; padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
@@ -153,7 +180,7 @@ div.stSelectbox > div[role="combobox"] > div {
 }
 div.stSelectbox svg { fill: #1f77b4 !important; }
 
-/* Responsive adjustments */
+/* Responsive adjustments for other elements */
 @media (max-width: 600px) {
     /* Horizontal top-right bar with margin from top */
     #contact-panel { flex-direction: row; top: 50px; right: 10px; padding: 8px 10px; border-radius: 8px; }
