@@ -96,11 +96,11 @@ def load_simulation_data():
         return {}
 
 # -------------------------------
-# 5️⃣ PAGE STYLING
+# 5️⃣ PAGE STYLING (UPDATED BACKGROUND)
 
 st.markdown("""
 <style>
-body, .main { background-color: #e6e6e6; font-family: Inter, Roboto, Arial, sans-serif; }
+body, .main { background-color: #f2f2f2; font-family: Inter, Roboto, Arial, sans-serif; }
 
 h1, h2, h3, .stMarkdown p, .stSelectbox label { 
     text-align: center !important; 
@@ -119,9 +119,29 @@ div.stSelectbox > div > div[role="combobox"] {
     max-width: 300px;
     min-width: 200px;
 }
+
+/* Style for "How this simulation works" */
+.sim-step {
+    background-color: #ffffff;
+    border-left: 4px solid #1f77b4;
+    padding: 10px 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+.sim-step h4 {
+    margin: 0 0 4px 0;
+    font-weight: 600;
+    color: #1f77b4;
+}
+.sim-step p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+}
 </style>
 """, unsafe_allow_html=True)
-
 # -------------------------------
 # 6️⃣ TITLE
 
@@ -191,7 +211,7 @@ pos_pct_df["POS"] = pos_pct_df["POS"].astype(int)
 pos_pct_df["GP"] = pos_pct_df["GP"].astype(int)
 pos_pct_df["PTS"] = pos_pct_df["PTS"].astype(int)
 
-st.header(f"🏆 {selected_display_name} Simulation Results")
+st.header(f"{selected_display_name} Simulation Results")
 
 # -------------------------------
 # 🔟 STYLE AND DISPLAY TABLE
@@ -222,19 +242,51 @@ csv = pos_pct_df.to_csv(index=False).encode("utf-8")
 st.download_button("Download table as CSV", data=csv, file_name=f"{league}_final_positions.csv", mime="text/csv")
 
 # -------------------------------
-# 1️⃣2️⃣ METHODOLOGY
+# 1️⃣2️⃣ METHODOLOGY (PROFESSIONAL LOOK — CENTRED STEPS)
 
-with st.expander("📌 How this simulation works"):
-    st.markdown("""
-**Step 1 – Historical Data:** Compile past match results from the 2024/25 and 2025/26 seasons.  
-**Step 2 – Betting Odds:** Gather betting odds for upcoming fixtures.  
-**Step 3 – Team Strengths:** Estimate offensive and defensive strength.  
-**Step 4 – Match Probabilities:** Use betting odds and a Poisson goal model.  
-**Step 5 – Full Season Simulation:** Simulate remaining fixtures 10,000 times.  
-**Step 6 – Final Probabilities:** Aggregate the simulated league tables.
-""")
+st.markdown("""
+<div style="background-color:#ffffff; padding:25px 30px; border-radius:10px; box-shadow:0 3px 6px rgba(0,0,0,0.1); max-width:920px; margin:auto;">
 
-# -------------------------------
+<h3 style="color:#1f77b4; margin-bottom:15px;">📌 How This Simulation Works</h3>
+
+<p style="font-size:15px; line-height:1.8; color:#333;">
+This simulation combines <b>historical results</b> and <b>betting odds</b> to estimate match outcome probabilities.  
+We then run <b>10,000 Monte Carlo simulations</b> for all remaining fixtures to calculate how likely each team is to finish in each league position.
+</p>
+
+<ul style="font-size:15px; line-height:1.8; color:#333; padding-left:0; list-style:none; border-left:3px solid #1f77b4; margin-top:20px;">
+<li style="margin-bottom:15px; display:flex; align-items:flex-start;">
+  <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>1</div>
+  <div><b>Historical Data:</b> Collect current standings via web scraping (<a href="https://www.espn.com/soccer/standings/_/league/ENG.1/season/2025" target="_blank">ESPN</a>).</div>
+</li>
+<li style="margin-bottom:15px; display:flex; align-items:flex-start;">
+  <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>2</div>
+  <div><b>Fixtures:</b> Historical match results and remaining fixtures obtained via the <a href="https://www.football-data.org/" target="_blank">Football-Data API</a>.</div>
+</li>
+<li style="margin-bottom:15px; display:flex; align-items:flex-start;">
+  <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>3</div>
+  <div><b>Betting Odds:</b> Incorporate market expectations from <a href="https://the-odds-api.com/" target="_blank">The Odds API</a> to boost accuracy.</div>
+</li>
+<li style="margin-bottom:15px; display:flex; align-items:flex-start;">
+  <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>4</div>
+  <div><b>Team Strengths:</b> Estimate attacking and defensive strengths for each team.</div>
+</li>
+<li style="margin-bottom:15px; display:flex; align-items:flex-start;">
+  <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>5</div>
+  <div><b>Match Probabilities:</b> Generate outcome probabilities using Poisson and betting-based models.</div>
+</li>
+<li style="margin-bottom:15px; display:flex; align-items:flex-start;">
+  <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>6</div>
+  <div><b>Monte Carlo Simulations:</b> Run 10,000 full season simulations to cover all possible scenarios.</div>
+</li>
+<li style="margin-bottom:0; display:flex; align-items:flex-start;">
+  <div style='background-color:#1f77b4;color:#fff;font-weight:600;border-radius:50%;display:flex;align-items:center;justify-content:center;width:30px;height:30px;flex-shrink:0;margin-right:12px;'>7</div>
+  <div><b>Final Positions:</b> Aggregate the simulation results into probability distributions.</div>
+</li>
+</ul>
+
+</div>
+""", unsafe_allow_html=True)# -------------------------------
 # 1️⃣3️⃣ ABOUT ME (PRETTIER VERSION WITH ICONS)
 
 st.markdown("---")
