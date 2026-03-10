@@ -121,9 +121,45 @@ th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }
 .sim-step p { margin: 0; font-size: 14px; line-height: 1.5; color: #333; }
 
 /* Contact top-right panel */
-#contact-panel { position: fixed; top: 20px; right: 20px; background-color: #ffffff; padding: 10px 12px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: column; align-items: center; }
+#contact-panel { position: fixed; top: 40px; right: 20px; background-color: #ffffff; padding: 10px 12px; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.15); z-index: 100; display: flex; flex-direction: column; align-items: center; }
 #contact-panel a { margin: 6px 0; text-decoration: none; transition: transform 0.2s; }
 #contact-panel a:hover img { transform: scale(1.3); }
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+/* Contact top-right panel */
+#contact-panel { 
+    position: fixed; 
+    top: 20px; 
+    right: 20px; 
+    background-color: #ffffff; 
+    padding: 10px 12px; 
+    border-radius: 10px; 
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15); 
+    z-index: 100; 
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+}
+
+/* All icons spacing */
+#contact-panel a { 
+    margin: 8px 0;           /* equal spacing between icons */
+    text-decoration: none; 
+    transition: transform 0.2s; 
+}
+
+/* Extra margin above the first icon */
+#contact-panel a:first-child {
+    margin-top: 12px;        /* slightly more space from top */
+}
+
+/* Hover effect */
+#contact-panel a:hover img { 
+    transform: scale(1.3); 
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -132,17 +168,17 @@ th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }
 
 st.markdown("""
 <div id="contact-panel">
-    <a href="https://medium.com/@vickyfrissdekereki" target="_blank" title="Medium">
-        <img src="https://img.icons8.com/ios-filled/30/000000/medium-monogram.png"/>
+    <a href="mailto:vicky_friss@hotmail.com" title="Email">
+        <img src="https://img.icons8.com/ios-filled/30/000000/new-post.png"/>
     </a>
     <a href="https://www.linkedin.com/in/victoria-friss-de-kereki/" target="_blank" title="LinkedIn">
         <img src="https://img.icons8.com/ios-filled/30/000000/linkedin.png"/>
     </a>
+    <a href="https://medium.com/@vickyfrissdekereki" target="_blank" title="Medium">
+        <img src="https://img.icons8.com/ios-filled/30/000000/medium-monogram.png"/>
+    </a>
     <a href="https://github.com/vickyfriss" target="_blank" title="GitHub">
         <img src="https://img.icons8.com/ios-filled/30/000000/github.png"/>
-    </a>
-    <a href="mailto:vicky_friss@hotmail.com" title="Email">
-        <img src="https://img.icons8.com/ios-filled/30/000000/new-post.png"/>
     </a>
 </div>
 """, unsafe_allow_html=True)
@@ -156,7 +192,7 @@ st.markdown("""
 <p><b>Data-driven forecasts</b> for final positions across Europe’s top 5 football leagues (2025-26).</p>
 <p>This app simulates every remaining fixture <b>10,000 times</b> and aggregates results into probability tables.</p>
 <p style="margin-top:10px; font-weight:600; color:#1f77b4;">
-<a href="#about-me" target="_blank" style="text-decoration:none; color:#1f77b4;">Learn more about the creator & connect →</a>
+<a href="https://www.linkedin.com/in/victoria-friss-de-kereki/" target="_blank" style="text-decoration:none; color:#1f77b4;">Learn more about the creator & connect →</a>
 </p>
 </div>
 """, unsafe_allow_html=True)
@@ -263,18 +299,19 @@ Interested in collaborating, hiring, or discussing sports analytics? <br><b>Let�
 </p>
 
 <div style="margin-top:20px;">
-<a href="https://medium.com/@vickyfrissdekereki" target="_blank" style="margin:0 15px; text-decoration:none;">
-  <img src="https://img.icons8.com/ios-filled/30/000000/medium-monogram.png"/>
+<a href="mailto:vicky_friss@hotmail.com" style="margin:0 15px; text-decoration:none;">
+  <img src="https://img.icons8.com/ios-filled/30/000000/new-post.png"/>
 </a>
 <a href="https://www.linkedin.com/in/victoria-friss-de-kereki/" target="_blank" style="margin:0 15px; text-decoration:none;">
   <img src="https://img.icons8.com/ios-filled/30/000000/linkedin.png"/>
 </a>
+<a href="https://medium.com/@vickyfrissdekereki" target="_blank" style="margin:0 15px; text-decoration:none;">
+  <img src="https://img.icons8.com/ios-filled/30/000000/medium-monogram.png"/>
+</a>
 <a href="https://github.com/vickyfriss" target="_blank" style="margin:0 15px; text-decoration:none;">
   <img src="https://img.icons8.com/ios-filled/30/000000/github.png"/>
 </a>
-<a href="mailto:vicky_friss@hotmail.com" style="margin:0 15px; text-decoration:none;">
-  <img src="https://img.icons8.com/ios-filled/30/000000/new-post.png"/>
-</a>
+
 </div>
 </div>
 """, unsafe_allow_html=True)
