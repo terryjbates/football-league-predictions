@@ -234,7 +234,7 @@ def fetch_past_season_results(seasons=[2025, 2024]):
 
     return past_matches
 
-# -------------------------------
+# ------------------------------- 
 # 7️⃣ Master function to create all datasets
 def create_datasets(save_csv=True):
     print("Scraping league standings...")
