@@ -194,17 +194,23 @@ st.markdown("""
 # -------------------------------
 # 7️⃣ HERO SECTION
 
-st.title("⚽ Football League Simulator ⚽")
 st.markdown("""
-<div style="background: linear-gradient(90deg, #f9fbff, #ffffff); padding:20px 25px; border-radius:10px; 
-            box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:920px; margin:auto; text-align:center; 
-            font-size:16px; line-height:1.7; margin-bottom:10px;">
-<p><b>Data-driven forecasts</b> for final positions across Europe’s top 5 football leagues (2025-26).</p>
-<p>This app simulates every remaining fixture <b>10,000 times</b> and aggregates results into probability tables.</p>
-<p style="margin-top:10px; font-weight:600; color:#1f77b4;">
-<a href="https://www.linkedin.com/in/victoria-friss-de-kereki/" target="_blank" style="text-decoration:none; color:#1f77b4;">
-Learn more about the creator & connect →</a>
-</p>
+<div style="background: linear-gradient(90deg, #f9fbff, #ffffff); padding:25px 30px; 
+            border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.1); max-width:920px; 
+            margin:auto; text-align:center; font-family:Inter, Roboto, Arial, sans-serif;">
+    <h1 style="margin:0; font-size:36px; font-weight:700; color:#1f77b4; letter-spacing:1px; text-transform:uppercase;">
+        Football League Simulator
+    </h1>
+    <div style="height:4px; width:80px; background:#1f77b4; margin:10px auto 20px auto; border-radius:2px;"></div>
+    <p style="font-size:16px; line-height:1.7; color:#333; margin:0;">
+        Data-driven forecasts for final positions across Europe’s top 5 football leagues (2025-26).<br>
+        Simulates every remaining fixture <b>10,000 times</b> and aggregates results into probability tables.
+    </p>
+    <p style="margin-top:15px; font-weight:600; color:#1f77b4;">
+        <a href="https://www.linkedin.com/in/victoria-friss-de-kereki/" target="_blank" style="text-decoration:none; color:#1f77b4;">
+        Learn more about the creator & connect →
+        </a>
+    </p>
 </div>
 """, unsafe_allow_html=True)
 
