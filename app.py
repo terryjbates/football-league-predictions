@@ -155,8 +155,8 @@ div.stSelectbox svg { fill: #1f77b4 !important; }
 
 /* Responsive adjustments */
 @media (max-width: 600px) {
-    /* Horizontal top-right bar instead of vertical */
-    #contact-panel { flex-direction: row; top: 10px; right: 10px; padding: 8px; border-radius: 8px; }
+    /* Horizontal top-right bar with margin from top */
+    #contact-panel { flex-direction: row; top: 40px; right: 10px; padding: 8px 10px; border-radius: 8px; }
     #contact-panel a { margin: 0 8px; }
     #contact-panel a:first-child { margin-left: 0; }
     #contact-panel a img { width: 24px !important; height: 24px !important; }
