@@ -82,17 +82,14 @@ def style_probabilities_table(df):
 
 # -------------------------------
 # 4️⃣ CACHE SIMULATION DATA LOADING
-
-@st.cache_data
-def load_simulation_data():
-
+@st.cache_data(show_spinner=False)
+def load_simulation_data(file_mtime):
     pct_file = "data/precomputed_pos_pct.pkl"
-
-    if not os.path.exists(pct_file):
+    try:
+        with open(pct_file, "rb") as f:
+            return pickle.load(f)
+    except Exception:
         return {}
-
-    with open(pct_file, "rb") as f:
-        return pickle.load(f)
 
 # -------------------------------
 # 5️⃣ PAGE STYLING
@@ -122,9 +119,7 @@ div.stSelectbox > div > div[role="combobox"] {
 
 # -------------------------------
 # 6️⃣ TITLE
-
 st.title("⚽ Football League Simulator ⚽")
-
 st.markdown("""
 **Data-driven forecasts for final positions across Europe’s top 5 football leagues (2025-26).**
 
@@ -133,30 +128,21 @@ The results are aggregated to generate probabilities for each team finishing in 
 """)
 
 # -------------------------------
-# 7️⃣ LOAD SIMULATION DATA
+# 7️⃣ LOAD SIMULATION DATA WITH TIMESTAMP
+pct_file = "data/precomputed_pos_pct.pkl"
+file_mtime = os.path.getmtime(pct_file) if os.path.exists(pct_file) else 0
 
-try:
+with st.spinner("Loading simulation results..."):
+    position_distribution_pct_all = load_simulation_data(file_mtime)
 
-    position_distribution_pct_all = load_simulation_data()
-
-    if position_distribution_pct_all:
-
-        pct_file = "data/precomputed_pos_pct.pkl"
-        pct_mtime = datetime.fromtimestamp(os.path.getmtime(pct_file), tz=timezone.utc)
-        formatted_time = pct_mtime.strftime("%d/%B/%Y %H:%M")
-
-        st.info(f"Simulations last run on: {formatted_time} UTC")
-
-    else:
-        st.warning("⚠️ No precomputed simulation results found.")
-
-except Exception as e:
-    st.error(f"❌ Failed to load simulation results: {e}")
-    position_distribution_pct_all = {}
+if position_distribution_pct_all:
+    pct_mtime_dt = datetime.fromtimestamp(file_mtime, tz=timezone.utc)
+    st.info(f"Simulations last run on: {pct_mtime_dt.strftime('%d/%B/%Y %H:%M')} UTC")
+else:
+    st.warning("⚠️ No precomputed simulation results found.")
 
 # -------------------------------
 # 8️⃣ LEAGUE SELECTION
-
 league_display_names = [
     "Premier League (England)",
     "Serie A (Italy)",
@@ -178,92 +164,52 @@ league = league_key_map[selected_display_name]
 
 # -------------------------------
 # 9️⃣ PREPARE DATAFRAME
-
 if league in position_distribution_pct_all and not position_distribution_pct_all[league].empty:
-
     pos_pct_df = position_distribution_pct_all[league].copy().reset_index()
-
 else:
-
     pos_pct_df = pd.DataFrame(columns=["POS","TEAM","GP","PTS"])
 
 if isinstance(pos_pct_df.columns, pd.MultiIndex):
     pos_pct_df.columns = [str(c) for c in pos_pct_df.columns]
 
 for col in ["POS","TEAM","GP","PTS"]:
-
     if col not in pos_pct_df.columns:
-
         if col == "POS":
             pos_pct_df[col] = np.arange(1, len(pos_pct_df)+1)
-
         elif col in ["GP","PTS"]:
             pos_pct_df[col] = 0
-
         else:
             pos_pct_df[col] = ""
 
-pos_pct_df["TEAM"] = pos_pct_df["TEAM"].astype(str)
-pos_pct_df["POS"] = pos_pct_df["POS"].astype(int)
-pos_pct_df["GP"] = pos_pct_df["GP"].astype(int)
-pos_pct_df["PTS"] = pos_pct_df["PTS"].astype(int)
+pos_pct_df = pos_pct_df.astype({"TEAM": str, "POS": int, "GP": int, "PTS": int})
 
 st.header(f"🏆 {selected_display_name} Simulation Results")
 
 # -------------------------------
 # 🔟 STYLE AND DISPLAY TABLE
-
 styled_table, num_cols = style_probabilities_table(pos_pct_df)
 
 responsive_table_css = """
 <style>
-
-div.table-wrapper {
-    width: 100%;
-    overflow-x: auto;
-}
-
-table {
-    width: 100% !important;
-    border-collapse: collapse;
-}
-
-th, td {
-    overflow: visible !important;
-    white-space: normal !important;
-    text-align: center !important;
-    font-size: 14px !important;
-    padding: 4px 6px !important;
-}
-
-th:nth-child(2), td:nth-child(2) {
-    text-align: left !important;
-    min-width: 150px;
-}
-
+div.table-wrapper { width: 100%; overflow-x: auto; }
+table { width: 100% !important; border-collapse: collapse; }
+th, td { overflow: visible !important; white-space: normal !important; text-align: center !important; font-size: 14px !important; padding: 4px 6px !important; }
+th:nth-child(2), td:nth-child(2) { text-align: left !important; min-width: 150px; }
 th:nth-child(1), td:nth-child(1) { width: 40px; }
 th:nth-child(3), td:nth-child(3) { min-width: 50px; }
 th:nth-child(4), td:nth-child(4) { min-width: 50px; }
 th:nth-child(n+5), td:nth-child(n+5) { min-width: 60px; }
-
-@media (max-width: 600px) {
-    th, td { font-size: 12px !important; }
-    th:nth-child(2), td:nth-child(2) { min-width: 120px; }
-}
-
+@media (max-width: 600px) { th, td { font-size: 12px !important; } th:nth-child(2), td:nth-child(2) { min-width: 120px; } }
 </style>
 """
 
 st.markdown(responsive_table_css, unsafe_allow_html=True)
 st.markdown(f'<div class="table-wrapper">{styled_table.to_html(escape=False)}</div>', unsafe_allow_html=True)
-
 st.caption("Table shows probability (%) of each team finishing in each position based on 10,000 simulated seasons.")
 
 # -------------------------------
 # 11️⃣ DOWNLOAD OPTION
-
 csv = pos_pct_df.to_csv(index=False).encode("utf-8")
-
 st.download_button(
     label="Download table as CSV",
     data=csv,
@@ -273,37 +219,25 @@ st.download_button(
 
 # -------------------------------
 # 12️⃣ METHODOLOGY
-
 with st.expander("📌 How this simulation works"):
-
     st.markdown("""
-
 **Step 1 – Historical Data:** Compile past match results from the 2024/25 and 2025/26 seasons.  
-
 **Step 2 – Betting Odds:** Gather betting odds for upcoming fixtures.  
-
 **Step 3 – Team Strengths:** Estimate offensive and defensive strength.  
-
 **Step 4 – Match Probabilities:** Use betting odds and a Poisson goal model.  
-
 **Step 5 – Full Season Simulation:** Simulate remaining fixtures 10,000 times.  
-
 **Step 6 – Final Probabilities:** Aggregate the simulated league tables.
 """)
 
 # -------------------------------
 # 13️⃣ ABOUT ME
-
 st.markdown("---")
-
 st.header("About Me")
-
 st.markdown("""
 Hi, I'm **Victoria Friss de Kereki**, a Data Scientist working in sports analytics and applied modelling.
 
 I build probabilistic football simulations and predictive models for Europe’s top leagues and write about football data and analytics.
 """)
-
 st.markdown("""
 📄 [Read my Medium](https://medium.com/@vickyfrissdekereki)  
 💼 [LinkedIn](https://www.linkedin.com/in/victoria-friss-de-kereki/)  
