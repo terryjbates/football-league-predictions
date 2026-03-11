@@ -43,12 +43,12 @@ jobs:
           echo "Running simulations at $(date -u +"%Y-%m-%d_%H%M%S_UTC")"
           python precompute_simulations.py 2>&1 | tee logs/github_actions_run.log || exit ${PIPESTATUS[0]}
 
-      # 5.5️⃣ Update redeploy trigger (forces Streamlit to reload)
+      # 6️⃣ Update redeploy trigger (forces Streamlit to reload)
       - name: Update redeploy trigger
         run: |
           date -u +"%Y-%m-%d %H:%M:%S UTC" > data/last_updated.txt
 
-      # 6️⃣ Ensure all generated files are tracked
+      # 7️⃣ Ensure all generated files are tracked
       - name: Stage all generated files
         run: |
           git config --global user.name "github-actions[bot]"
@@ -58,7 +58,7 @@ jobs:
           git add data/last_updated.txt
           git add data/simulations/*  # recursively add all timestamped folders and CSVs
 
-      # 7️⃣ Commit and push updated data
+      # 8️⃣ Commit and push updated data
       - name: Commit and push updated data
         run: |
           if ! git diff --cached --quiet; then
@@ -68,7 +68,7 @@ jobs:
             echo "No changes to commit."
           fi
 
-      # 8️⃣ Upload logs as artifact
+      # 9️⃣ Upload logs as artifact
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
