@@ -31,7 +31,7 @@ jobs:
       # 4️⃣ Prepare folders
       - name: Prepare folders
         run: |
-          mkdir -p data/simulations logs backups
+          mkdir -p data/simulations logs
 
       # 5️⃣ Run simulations and capture logs
       - name: Run precompute_simulations.py
