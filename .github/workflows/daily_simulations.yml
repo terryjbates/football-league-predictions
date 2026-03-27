@@ -62,6 +62,7 @@ jobs:
       - name: Commit and push updated data
         run: |
           git commit -m "Update precomputed simulations [skip ci]" || true
+          git pull --rebase origin main
           git push origin main
 
 
