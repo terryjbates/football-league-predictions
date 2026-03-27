@@ -22,14 +22,14 @@ The dashboard allows you to explore predicted league outcomes and probability di
 # 🚀 Features
 
 ### Data Collection & Processing
-Automatically scrapes and organises:
+Automatically collects and organises key data needed to run the model:
 
 - past match results  
 - upcoming fixtures  
 - betting odds  
 
 ### Probabilistic Modelling
-Computes match outcome probabilities using a **weighted Poisson model** for goals scored.
+Computes match outcome probabilities using a **Poisson model** for goals scored.
 
 ### Monte Carlo Simulation
 Runs thousands of simulations per league to estimate the **distribution of final league positions**.
@@ -38,7 +38,7 @@ Runs thousands of simulations per league to estimate the **distribution of final
 Styled tables show the probability of each team finishing in every league position using **intuitive colour gradients**.
 
 ### Streamlit Dashboard
-Run the simulation interactively:
+Observe the updated results:
 
 - choose a league  
 - visualise outcome probabilities  
@@ -47,7 +47,7 @@ Run the simulation interactively:
 
 # 🏆 Supported Leagues
 
-- English Premier League  
+- Premier League (England)  
 - Serie A (Italy)  
 - La Liga (Spain)  
 - Bundesliga (Germany)  
