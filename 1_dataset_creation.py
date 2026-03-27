@@ -8,28 +8,19 @@ from datetime import datetime, timedelta
 # -------------------------------
 # Helper to get API key from environment or local file
 def get_api_key(env_var_name, local_file=None):
-    """
-    Get an API key from environment variable, fallback to a local file.
-    env_var_name: name of the env var to check
-    local_file: optional path to a .env file
-    """
-    # Try env first
     key = os.getenv(env_var_name)
     if key:
         return key
-
-    # Then try loading from local file (for dev)
     if local_file and os.path.exists(local_file):
         from dotenv import load_dotenv
         load_dotenv(local_file)
         key = os.getenv(env_var_name)
         if key:
             return key
-
     raise ValueError(f"{env_var_name} not found in environment variables or {local_file}")
 
 # -------------------------------
-# 1️⃣ Team name cleaning
+# Team name cleaning
 TEAM_NAME_MAPPING = {
     "AAS Roma": "AS Roma",
     "OComo": "Como",
@@ -47,7 +38,7 @@ def clean_team_names(df, column="team"):
     return df
 
 # -------------------------------
-# 2️⃣ Scrape final standings from ESPN
+# Scrape ESPN standings
 def scrape_standings(year=2025):
     leagues_codes = {
         "ENG.1": "premierleague_england",
@@ -58,8 +49,11 @@ def scrape_standings(year=2025):
     }
 
     standings = {}
+
     for league_code, df_name in leagues_codes.items():
+
         url = f"https://www.espn.com/soccer/standings/_/league/{league_code}/season/{year}"
+
         tables = pd.read_html(url)
 
         teams_raw = tables[0]
@@ -67,6 +61,7 @@ def scrape_standings(year=2025):
 
         teams = pd.DataFrame()
         teams["position"] = teams_raw.iloc[:, 0].str.extract(r"^(\d+)").astype(int)
+
         teams["team"] = (
             teams_raw.iloc[:, 0]
             .str.replace(r"^\d+", "", regex=True)
@@ -79,13 +74,43 @@ def scrape_standings(year=2025):
 
         df = pd.concat([teams, stats], axis=1)
         df = clean_team_names(df)
+
         standings[df_name] = df
 
     return standings
 
 # -------------------------------
-# 3️⃣ Load betting odds
+# Detect standings change
+def standings_changed(new_standings, data_folder="data/league_table"):
+
+    for league, new_df in new_standings.items():
+
+        file_path = f"{data_folder}/{league}.csv"
+
+        if not os.path.exists(file_path):
+            print(f"{league}: no previous standings found.")
+            return True
+
+        old_df = pd.read_csv(file_path)
+
+        merged = new_df[["team", "position"]].merge(
+            old_df[["team", "position"]],
+            on="team",
+            suffixes=("_new", "_old"),
+            how="outer"
+        )
+
+        if not (merged["position_new"] == merged["position_old"]).all():
+            print(f"{league}: standings changed.")
+            return True
+
+    print("No standings changes detected.")
+    return False
+
+# -------------------------------
+# Load betting odds
 def load_betting_odds():
+
     API_KEY = get_api_key("ODDS_DATA_API_KEY", local_file="API_KEY.env")
 
     leagues_api = {
@@ -97,6 +122,7 @@ def load_betting_odds():
     }
 
     base_url = "https://api.the-odds-api.com/v4/sports/{}/odds"
+
     params = {
         "apiKey": API_KEY,
         "regions": "uk",
@@ -107,29 +133,40 @@ def load_betting_odds():
     }
 
     odds_data = {}
+
     for sport_key, var_name in leagues_api.items():
+
         url = base_url.format(sport_key)
+
         response = requests.get(url, params=params)
         response.raise_for_status()
+
         odds_data[var_name] = response.json()
 
     return odds_data
 
 # -------------------------------
-# 4️⃣ Flatten bookmaker odds
+# Flatten bookmaker odds
 def flatten_odds(data):
+
     rows = []
+
     for match in data:
+
         match_id = match["id"]
         home = match["home_team"]
         away = match["away_team"]
         time_ = match["commence_time"]
 
         for book in match["bookmakers"]:
+
             bookmaker = book["title"]
+
             h2h = next((m for m in book["markets"] if m["key"] == "h2h"), None)
+
             if not h2h:
                 continue
+
             outcomes = {o["name"]: o["price"] for o in h2h["outcomes"]}
 
             rows.append({
@@ -142,25 +179,32 @@ def flatten_odds(data):
                 "draw_odds": outcomes.get("Draw"),
                 "away_odds": outcomes.get(away),
             })
+
     return pd.DataFrame(rows)
 
+
 def compute_implied_probs(df):
+
     df = df.assign(
         p_home_raw=1/df["home_odds"],
         p_draw_raw=1/df["draw_odds"],
         p_away_raw=1/df["away_odds"]
     )
+
     total = df["p_home_raw"] + df["p_draw_raw"] + df["p_away_raw"]
+
     df = df.assign(
         p_home_book=df["p_home_raw"]/total,
         p_draw_book=df["p_draw_raw"]/total,
         p_away_book=df["p_away_raw"]/total
     )
+
     return df.groupby(["home_team","away_team"], as_index=False)[["p_home_book","p_draw_book","p_away_book"]].mean()
 
 # -------------------------------
-# 5️⃣ Get fixtures from Football-Data API
+# Get fixtures
 def load_fixtures():
+
     API_KEY = get_api_key("FOOTBALL_DATA_API_KEY", local_file="API_KEY.env")
 
     competitions = {
@@ -172,26 +216,40 @@ def load_fixtures():
     }
 
     headers = {"X-Auth-Token": API_KEY}
+
     today = datetime.utcnow().date()
     end_of_season = today + timedelta(days=365)
-    params = {"status":"SCHEDULED","dateFrom":today.isoformat(),"dateTo":end_of_season.isoformat()}
+
+    params = {
+        "status":"SCHEDULED",
+        "dateFrom":today.isoformat(),
+        "dateTo":end_of_season.isoformat()
+    }
 
     fixtures_data = {}
+
     for comp_code, df_name in competitions.items():
+
         url = f"https://api.football-data.org/v4/competitions/{comp_code}/matches"
+
         response = requests.get(url, headers=headers, params=params)
         response.raise_for_status()
+
         data = response.json()["matches"]
+
         df = pd.DataFrame(data)[["utcDate","status","homeTeam","awayTeam"]].copy()
+
         df["homeTeam"] = df["homeTeam"].apply(lambda x: x["name"])
         df["awayTeam"] = df["awayTeam"].apply(lambda x: x["name"])
+
         fixtures_data[df_name] = df
 
     return fixtures_data
 
 # -------------------------------
-# 6️⃣ Fetch past season results
+# Fetch past season results
 def fetch_past_season_results(seasons=[2025, 2024]):
+
     API_KEY = get_api_key("FOOTBALL_DATA_API_KEY", local_file="API_KEY.env")
 
     competitions = {
@@ -203,21 +261,48 @@ def fetch_past_season_results(seasons=[2025, 2024]):
     }
 
     headers = {"X-Auth-Token": API_KEY}
+
     past_matches = {}
 
+    os.makedirs("data/2024", exist_ok=True)
+
     for comp_code, league_name in competitions.items():
+
         past_matches[league_name] = {}
+
         for season in seasons:
+
+            if season == 2024:
+
+                local_file = f"data/2024/past_{league_name}_2024.csv"
+
+                if os.path.exists(local_file):
+
+                    print(f"Loading cached {league_name} season 2024...")
+
+                    df_clean = pd.read_csv(local_file)
+
+                    past_matches[league_name][season] = df_clean
+                    continue
+
             print(f"Fetching {league_name} season {season}...")
+
             url = f"https://api.football-data.org/v4/competitions/{comp_code}/matches"
-            params = {"season": season, "status": "FINISHED"}
+
+            params = {
+                "season": season,
+                "status": "FINISHED"
+            }
 
             response = requests.get(url, headers=headers, params=params)
             response.raise_for_status()
+
             matches = response.json()["matches"]
 
             clean_rows = []
+
             for m in matches:
+
                 clean_rows.append({
                     "utcDate": m["utcDate"],
                     "matchday": m.get("matchday"),
@@ -228,43 +313,69 @@ def fetch_past_season_results(seasons=[2025, 2024]):
                     "awayGoals": m["score"]["fullTime"]["away"],
                     "winner": m["score"]["winner"],
                 })
+
             df_clean = pd.DataFrame(clean_rows)
+
             past_matches[league_name][season] = df_clean
-            time.sleep(10)  # polite API request interval
+
+            if season == 2024:
+                df_clean.to_csv(f"data/2024/past_{league_name}_2024.csv", index=False)
+
+            time.sleep(10)
 
     return past_matches
 
-# ------------------------------- 
-# 7️⃣ Master function to create all datasets
+
+# -------------------------------
+# Master function
 def create_datasets(save_csv=True):
+
     print("Scraping league standings...")
     standings = scrape_standings()
 
-    print("Loading betting odds...")
+    league_table_folder = "data/league_table"
+    os.makedirs(league_table_folder, exist_ok=True)
+
+    if not standings_changed(standings, data_folder=league_table_folder):
+        print("Standings unchanged. Skipping API calls.")
+        return standings, None, None, None
+
+    print("Standings changed. Updating datasets...")
+
     odds_raw = load_betting_odds()
     odds_dfs = {k: flatten_odds(v) for k,v in odds_raw.items()}
     odds_book = {k: compute_implied_probs(v) for k,v in odds_dfs.items()}
 
-    print("Loading fixtures...")
     fixtures = load_fixtures()
 
-    print("Fetching past season results...")
     past_results = fetch_past_season_results()
 
     if save_csv:
+
         os.makedirs("data", exist_ok=True)
+
         for name, df in standings.items():
-            df.to_csv(f"data/{name}.csv", index=False)
+            df.to_csv(f"{league_table_folder}/{name}.csv", index=False)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        sim_folder = f"data/simulations/{timestamp}"
+
+        os.makedirs(sim_folder, exist_ok=True)
+
         for name, df in odds_book.items():
-            df.to_csv(f"data/{name}.csv", index=False)
+            df.to_csv(f"{sim_folder}/{name}_probabilities.csv", index=False)
+
         for name, df in fixtures.items():
             df.to_csv(f"data/{name}.csv", index=False)
+
         for league_name, seasons_dict in past_results.items():
             for season, df in seasons_dict.items():
                 df.to_csv(f"data/past_{league_name}_{season}.csv", index=False)
 
-    print("Datasets created and saved to 'data/' folder.")
+    print("Datasets created and saved.")
+
     return standings, odds_book, fixtures, past_results
+
 
 # -------------------------------
 if __name__ == "__main__":
